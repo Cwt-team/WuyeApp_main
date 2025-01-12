@@ -1,5 +1,6 @@
 package com.example.wuyeapp;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -97,8 +98,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         binding.navProfile.setOnClickListener(v -> {
-            Toast.makeText(this, "点击了我的", Toast.LENGTH_SHORT).show();
-            // TODO: 跳转到个人中心页面
+            Intent intent = new Intent(this, ProfileActivity.class);
+            startActivity(intent);
         });
     }
 
@@ -113,7 +114,9 @@ public class MainActivity extends AppCompatActivity {
                     // 根据点击的索引 finalI 执行相应的操作
                     switch (finalI) {
                         case 0:
-                            Toast.makeText(this, "点击了用户通", Toast.LENGTH_SHORT).show();
+                            // 跳转到户户通界面
+                            Intent intent = new Intent(this, DialPadActivity.class);
+                            startActivity(intent);
                             break;
                         case 1:
                             Toast.makeText(this, "点击了监控", Toast.LENGTH_SHORT).show();

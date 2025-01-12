@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white">
+
+    <!-- 标题栏 -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#047C71">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_arrow_back"
+            android:contentDescription="返回"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="户户通"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"/>
+    </RelativeLayout>
+
+    <!-- 空白区域 -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- 数字键盘 -->
+    <GridLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:columnCount="3"
+        android:rowCount="4"
+        android:useDefaultMargins="true">
+
+        <!-- 数字按钮1-9, *, 0, # -->
+        <Button
+            android:id="@+id/btn_1"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="1"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_2"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="2"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_3"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="3"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_4"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="4"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_5"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="5"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_6"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="6"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_7"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="7"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_8"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="8"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_9"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="9"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_star"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="*"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_0"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="0"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+
+        <Button
+            android:id="@+id/btn_hash"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/dial_button_background"
+            android:text="#"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_margin="8dp"/>
+    </GridLayout>
+
+    <!-- 空白区域 -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- 底部按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="物业"
+            android:textColor="#297F07"/>
+
+        <Space
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"/>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_call"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:src="@drawable/ic_call"
+            app:fabCustomSize="60dp"
+            app:maxImageSize="30dp"
+            app:backgroundTint="#3CB60B"/>
+
+        <Space
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:id="@+id/btn_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="删除"
+            android:textColor="#EA2828"/>
+    </LinearLayout>
+</LinearLayout>
