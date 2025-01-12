@@ -72,10 +72,10 @@ public class MainActivity extends AppCompatActivity {
 
         // 6. 设置生活服务 RecyclerView
         List<Service> servicesList = new ArrayList<>();
-        servicesList.add(new Service("家政服务平台、保姆月嫂", R.drawable.mock_service_jiatingfuwu));
-        servicesList.add(new Service("快递服务，查快递", R.drawable.mock_service_kuaidi));
-        servicesList.add(new Service("本地生活，享生活", R.drawable.mock_service_bendishenghuo));
-        servicesList.add(new Service("更多服务", R.drawable.mock_service_more)); // 可以根据需要添加更多
+        servicesList.add(new Service("家政服务平台、保姆月嫂", R.drawable.pic3));
+        servicesList.add(new Service("快递服务，查快递", R.drawable.pic4));
+        servicesList.add(new Service("本地生活，享生活", R.drawable.pic5));
+        servicesList.add(new Service("更多服务", R.drawable.ic_quick_action_more));
 
         serviceAdapter = new ServiceAdapter(servicesList);
         binding.livingServicesRecyclerview.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
@@ -86,6 +86,20 @@ public class MainActivity extends AppCompatActivity {
         // 例如：
         // Button button1 = findViewById(R.id.bottom_navigation_button1); // 假设你在 bottom_navigation.xml 中有这些按钮
         // button1.setOnClickListener(v -> { /* 处理按钮1的点击事件 */ });
+
+        binding.navHome.setOnClickListener(v -> {
+            // 已经在首页,无需处理
+        });
+
+        binding.navUnlock.setOnClickListener(v -> {
+            Toast.makeText(this, "点击了开锁", Toast.LENGTH_SHORT).show();
+            // TODO: 跳转到开锁页面
+        });
+
+        binding.navProfile.setOnClickListener(v -> {
+            Toast.makeText(this, "点击了我的", Toast.LENGTH_SHORT).show();
+            // TODO: 跳转到个人中心页面
+        });
     }
 
     private void setupQuickActions() {
