@@ -30,5 +30,18 @@
         <activity
             android:name=".DialPadActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".InviteVisitorActivity"
+            android:exported="false"/>
+        
+        <activity
+            android:name=".ScanQrActivity"
+            android:exported="false"/>
+
+        <activity
+            android:name=".MoreActivity"
+            android:exported="false"/>
+
     </application>
 </manifest>

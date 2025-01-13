@@ -1,5 +1,6 @@
 package com.example.wuyeapp;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -30,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private ImageAdapter imageAdapter;
     private ServiceAdapter serviceAdapter;
+    private static final int REQUEST_CODE_MORE = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, ProfileActivity.class);
             startActivity(intent);
         });
+        
     }
 
     private void setupQuickActions() {
@@ -115,20 +118,22 @@ public class MainActivity extends AppCompatActivity {
                     switch (finalI) {
                         case 0:
                             // 跳转到户户通界面
-                            Intent intent = new Intent(this, DialPadActivity.class);
-                            startActivity(intent);
+                            Intent intent1 = new Intent(this, DialPadActivity.class);
+                            startActivity(intent1);
                             break;
                         case 1:
                             Toast.makeText(this, "点击了监控", Toast.LENGTH_SHORT).show();
                             break;
                         case 2:
-                            Toast.makeText(this, "点击了邀请访客", Toast.LENGTH_SHORT).show();
+                            Intent intent2 = new Intent(this, InviteVisitorActivity.class);
+                            startActivity(intent2);
                             break;
                         case 3:
                             Toast.makeText(this, "点击了呼叫电梯", Toast.LENGTH_SHORT).show();
                             break;
-                        case 4:
-                            Toast.makeText(this, "点击了扫码开门", Toast.LENGTH_SHORT).show();
+                            case 4:
+                            Intent intent = new Intent(this, ScanQrActivity.class);
+                            startActivity(intent);
                             break;
                         case 5:
                             Toast.makeText(this, "点击了社区通知", Toast.LENGTH_SHORT).show();
@@ -145,6 +150,12 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }
+
+        // 修改"更多"按钮的点击事件
+        binding.btnMore.setOnClickListener(v -> {
+            Intent intent = new Intent(this, MoreActivity.class);
+            startActivityForResult(intent, REQUEST_CODE_MORE);
+        });
     }
 
     private void setupImageIndicators(int count) {
@@ -181,6 +192,67 @@ public class MainActivity extends AppCompatActivity {
             ImageView indicator = (ImageView) binding.imageIndicator.getChildAt(i);
             indicator.setImageResource(i == position ? R.drawable.indicator_active : R.drawable.indicator_inactive);
             indicator.setColorFilter(i == position ? activeColor : inactiveColor);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_MORE && resultCode == Activity.RESULT_OK) {
+            ArrayList<String> selectedFunctions = data.getStringArrayListExtra(MoreActivity.SELECTED_FUNCTIONS);
+            updateQuickActions(selectedFunctions);
+        }
+    }
+    
+    private void updateQuickActions(ArrayList<String> selectedFunctions) {
+        // 清空现有的快捷功能
+        binding.quickActionsGrid.removeAllViews();
+        
+        // 根据选中的功能重新添加快捷方式
+        for (String function : selectedFunctions) {
+            addQuickActionView(function);
+        }
+    }
+    
+    private void addQuickActionView(String functionName) {
+        // 创建并添加新的快捷功能视图
+        View quickActionView = LayoutInflater.from(this).inflate(R.layout.item_quick_action, binding.quickActionsGrid, false);
+        ImageView icon = quickActionView.findViewById(R.id.function_icon);
+        TextView name = quickActionView.findViewById(R.id.function_name);
+        
+        // 设置图标和名称
+        name.setText(functionName);
+        icon.setImageResource(getFunctionIcon(functionName));
+        
+        // 添加点击事件
+        quickActionView.setOnClickListener(v -> handleQuickActionClick(functionName));
+        
+        binding.quickActionsGrid.addView(quickActionView);
+    }
+    
+    private int getFunctionIcon(String functionName) {
+        // 根据功能名称返回对应的图标资源ID
+        switch (functionName) {
+            case "户户通":
+                return R.drawable.ic_huhuotong;
+            case "监视":
+                return R.drawable.ic_monitor;
+            // ... 添加其他功能的图标映射
+            default:
+                return R.drawable.ic_default;
+        }
+    }
+    
+    private void handleQuickActionClick(String functionName) {
+        // 处理快捷功能的点击事件
+        switch (functionName) {
+            case "户户通":
+                startActivity(new Intent(this, DialPadActivity.class));
+                break;
+            case "监视":
+                Toast.makeText(this, "点击了监控", Toast.LENGTH_SHORT).show();
+                break;
+            // ... 添加其他功能的处理逻辑
         }
     }
 }

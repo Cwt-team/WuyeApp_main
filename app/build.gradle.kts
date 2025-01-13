@@ -42,6 +42,7 @@ dependencies {
     // 添加 ViewPager2 和 GridLayout 的依赖
     implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation("androidx.gridlayout:gridlayout:1.0.0")
+    implementation("com.google.zxing:core:3.4.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
