@@ -1,6 +1,7 @@
 package com.example.wuyeapp;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,20 +14,30 @@ import java.util.List;
 
 public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapter.ViewHolder> {
     
-    private List<FunctionItem> items = new ArrayList<>();
-    private boolean isManageMode = false;
-    private final Context context;
-    private final boolean isSmartDoor;
+    private List<FunctionItem> items;
+    private boolean isManageMode;
+    private Context context;
     
-    public MoreFunctionAdapter(Context context, boolean isSmartDoor) {
+    public MoreFunctionAdapter(Context context, boolean isManageMode) {
         this.context = context;
-        this.isSmartDoor = isSmartDoor;
+        this.isManageMode = isManageMode;
+        this.items = new ArrayList<>();
+    }
+    
+    public void setManageMode(boolean manageMode) {
+        this.isManageMode = manageMode;
+        notifyDataSetChanged();
+    }
+    
+    public void setItems(List<FunctionItem> items) {
+        this.items = items;
+        notifyDataSetChanged();
     }
     
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context)
+        View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_more_function, parent, false);
         return new ViewHolder(view);
     }
@@ -39,13 +50,25 @@ public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapte
         holder.name.setText(item.getName());
         
         // 管理模式下显示选择状态
-        holder.selectIcon.setVisibility(isManageMode ? View.VISIBLE : View.GONE);
-        holder.selectIcon.setImageResource(item.isSelected() ? 
-                R.drawable.ic_check : R.drawable.ic_add);
+        if (isManageMode) {
+            holder.selectIcon.setVisibility(View.VISIBLE);
+            if (item.isHomeApp()) {
+                // 如果是首页应用，显示删除图标
+                holder.selectIcon.setImageResource(R.drawable.ic_remove);
+                holder.selectIcon.setColorFilter(Color.RED);
+            } else {
+                // 如果不是首页应用，显示添加图标
+                holder.selectIcon.setImageResource(R.drawable.ic_add);
+                holder.selectIcon.setColorFilter(Color.BLUE);
+            }
+        } else {
+            holder.selectIcon.setVisibility(View.GONE);
+        }
         
         holder.itemView.setOnClickListener(v -> {
             if (isManageMode) {
-                item.setSelected(!item.isSelected());
+                item.setHomeApp(!item.isHomeApp());
+                item.setSelected(item.isHomeApp());
                 notifyItemChanged(position);
             }
         });
@@ -53,17 +76,7 @@ public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapte
     
     @Override
     public int getItemCount() {
-        return items.size();
-    }
-    
-    public void setItems(List<FunctionItem> items) {
-        this.items = items;
-        notifyDataSetChanged();
-    }
-    
-    public void setManageMode(boolean manageMode) {
-        isManageMode = manageMode;
-        notifyDataSetChanged();
+        return items != null ? items.size() : 0;
     }
     
     public int getSelectedCount() {
@@ -77,7 +90,9 @@ public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapte
     public void resetDefaultSelection() {
         int count = 0;
         for (FunctionItem item : items) {
-            item.setSelected(count < 7);
+            boolean shouldBeSelected = count < 7;
+            item.setSelected(shouldBeSelected);
+            item.setHomeApp(shouldBeSelected);
             count++;
         }
         notifyDataSetChanged();

@@ -2,6 +2,7 @@ package com.example.wuyeapp;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -40,9 +41,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         // 1. 设置头部信息
-        binding.appName.setText("你的应用名称"); // 替换为实际的应用名称
-        binding.address.setText("当前用户地址");   // 替换为用户的实际地址
-        binding.onlineStatus.setText("在线");   // 可以动态设置
+        binding.appName.setText("我是帅哥111"); // 替换为实际的应用名称
+        binding.address.setText("新兴江1号");   // 替换为用户的实际地址
+        binding.onlineStatus.setText("隐身");   // 可以动态设置
         binding.onlineStatus.setTextColor(ContextCompat.getColor(this, R.color.green)); // 确保 R.color.green 存在
         binding.headerImage.setImageResource(R.drawable.ic_header_image); // 替换为你的头像资源
 
@@ -205,55 +206,170 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void updateQuickActions(ArrayList<String> selectedFunctions) {
-        // 清空现有的快捷功能
         binding.quickActionsGrid.removeAllViews();
+        binding.quickActionsGrid.setColumnCount(4);
         
-        // 根据选中的功能重新添加快捷方式
+        // 添加选中的功能
         for (String function : selectedFunctions) {
             addQuickActionView(function);
         }
+        
+        // 始终添加"更多"按钮
+        View moreActionView = LayoutInflater.from(this).inflate(R.layout.item_quick_action, null);
+        ImageView moreIcon = moreActionView.findViewById(R.id.function_icon);
+        TextView moreName = moreActionView.findViewById(R.id.function_name);
+        
+        moreIcon.setImageResource(R.drawable.ic_quick_action_more);
+        moreName.setText("更多");
+        
+        androidx.gridlayout.widget.GridLayout.LayoutParams params = 
+            new androidx.gridlayout.widget.GridLayout.LayoutParams();
+        params.width = 0;
+        params.height = androidx.gridlayout.widget.GridLayout.LayoutParams.WRAP_CONTENT;
+        params.columnSpec = androidx.gridlayout.widget.GridLayout.spec(
+            androidx.gridlayout.widget.GridLayout.UNDEFINED, 1f);
+        params.rowSpec = androidx.gridlayout.widget.GridLayout.spec(
+            androidx.gridlayout.widget.GridLayout.UNDEFINED);
+        
+        moreActionView.setLayoutParams(params);
+        moreActionView.setOnClickListener(v -> startMoreActivity());
+        
+        binding.quickActionsGrid.addView(moreActionView);
     }
     
-    private void addQuickActionView(String functionName) {
-        // 创建并添加新的快捷功能视图
-        View quickActionView = LayoutInflater.from(this).inflate(R.layout.item_quick_action, binding.quickActionsGrid, false);
+    private void startMoreActivity() {
+        Intent intent = new Intent(this, MoreActivity.class);
+        startActivityForResult(intent, REQUEST_CODE_MORE);
+    }
+
+    private void addQuickActionView(String function) {
+        View quickActionView = LayoutInflater.from(this).inflate(R.layout.item_quick_action, null);
         ImageView icon = quickActionView.findViewById(R.id.function_icon);
         TextView name = quickActionView.findViewById(R.id.function_name);
         
-        // 设置图标和名称
-        name.setText(functionName);
-        icon.setImageResource(getFunctionIcon(functionName));
+        name.setText(function);
+        icon.setImageResource(getFunctionIcon(function));
+        
+        androidx.gridlayout.widget.GridLayout.LayoutParams params = 
+            new androidx.gridlayout.widget.GridLayout.LayoutParams();
+        params.width = 0;
+        params.height = androidx.gridlayout.widget.GridLayout.LayoutParams.WRAP_CONTENT;
+        params.columnSpec = androidx.gridlayout.widget.GridLayout.spec(
+            androidx.gridlayout.widget.GridLayout.UNDEFINED, 1f);
+        params.rowSpec = androidx.gridlayout.widget.GridLayout.spec(
+            androidx.gridlayout.widget.GridLayout.UNDEFINED);
+        
+        quickActionView.setLayoutParams(params);
         
         // 添加点击事件
-        quickActionView.setOnClickListener(v -> handleQuickActionClick(functionName));
+        quickActionView.setOnClickListener(v -> {
+            if (function.equals("更多")) {
+                Intent intent = new Intent(this, MoreActivity.class);
+                startActivityForResult(intent, REQUEST_CODE_MORE);
+            } else {
+                handleQuickActionClick(function);
+            }
+        });
         
         binding.quickActionsGrid.addView(quickActionView);
     }
-    
+
     private int getFunctionIcon(String functionName) {
-        // 根据功能名称返回对应的图标资源ID
         switch (functionName) {
             case "户户通":
                 return R.drawable.ic_huhuotong;
-            case "监视":
-                return R.drawable.ic_monitor;
-            // ... 添加其他功能的图标映射
+            case "监控":
+                return R.drawable.ic_jiankong;
+            case "邀请访客":
+                return R.drawable.ic_yaoqingfangke;
+            case "呼叫电梯":
+                return R.drawable.ic_hujiaodianti;
+            case "扫码开门":
+                return R.drawable.ic_saomamenkai;
+            case "社区通知":
+                return R.drawable.ic_shequtongzhi;
+            case "报警记录":
+                return R.drawable.ic_baojingjilu;
+            case "更多":
+                return R.drawable.ic_quick_action_more;
+            case "呼叫记录":
+                return R.drawable.ic_hujiaorecord;
+            case "报事报修":
+                return R.drawable.ic_repair;
+            case "社区评价":
+                return R.drawable.ic_evaluate;
+            case "投诉建议":
+                return R.drawable.ic_suggest;
             default:
-                return R.drawable.ic_default;
+                return R.drawable.ic_quick_action_more;
         }
     }
-    
+
     private void handleQuickActionClick(String functionName) {
-        // 处理快捷功能的点击事件
+        Intent intent;
         switch (functionName) {
             case "户户通":
-                startActivity(new Intent(this, DialPadActivity.class));
+                // TODO: 启动户户通功能
+                Toast.makeText(this, "启动户户通", Toast.LENGTH_SHORT).show();
                 break;
-            case "监视":
-                Toast.makeText(this, "点击了监控", Toast.LENGTH_SHORT).show();
+            case "监控":
+                // TODO: 启动监控功能
+                Toast.makeText(this, "启动监控", Toast.LENGTH_SHORT).show();
                 break;
-            // ... 添加其他功能的处理逻辑
+            case "邀请访客":
+                // TODO: 启动邀请访客功能
+                Toast.makeText(this, "启动邀请访客", Toast.LENGTH_SHORT).show();
+                break;
+            case "呼叫电梯":
+                // TODO: 启动呼叫电梯功能
+                Toast.makeText(this, "启动呼叫电梯", Toast.LENGTH_SHORT).show();
+                break;
+            case "扫码开门":
+                intent = new Intent(this, ScanQrActivity.class);
+                startActivity(intent);
+                break;
+            case "社区通知":
+                // TODO: 启动社区通知功能
+                Toast.makeText(this, "启动社区通知", Toast.LENGTH_SHORT).show();
+                break;
+            case "报警记录":
+                // TODO: 启动报警记录功能
+                Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
+                break;
+            default:
+                Toast.makeText(this, "功能开发中...", Toast.LENGTH_SHORT).show();
+                break;
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadAndUpdateQuickActions();
+    }
+
+    private void loadAndUpdateQuickActions() {
+        SharedPreferences prefs = getSharedPreferences("QuickActions", MODE_PRIVATE);
+        ArrayList<String> selectedFunctions = new ArrayList<>();
+        int count = prefs.getInt("count", 0);
+        
+        if (count == 0) {
+            // 如果没有保存的状态，使用默认的快捷功能
+            selectedFunctions.add("户户通");
+            selectedFunctions.add("监控");
+            selectedFunctions.add("邀请访客");
+            selectedFunctions.add("呼叫电梯");
+            selectedFunctions.add("扫码开门");
+            selectedFunctions.add("社区通知");
+            selectedFunctions.add("报警记录");
+        } else {
+            // 加载保存的快捷功能
+            for (int i = 0; i < count; i++) {
+                selectedFunctions.add(prefs.getString("function_" + i, ""));
+            }
+        }
+        
+        updateQuickActions(selectedFunctions);
     }
 }
 

@@ -10,6 +10,9 @@ import com.example.wuyeapp.databinding.ActivityMoreBinding;
 import java.util.ArrayList;
 import java.util.List;
 import android.app.Activity;
+import android.content.SharedPreferences;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MoreActivity extends AppCompatActivity {
     
@@ -28,7 +31,19 @@ public class MoreActivity extends AppCompatActivity {
         
         initView();
         initData();
-        initListeners();
+        
+        // 返回按钮点击事件
+        binding.btnBack.setOnClickListener(v -> {
+            saveAndFinish();
+        });
+        
+        // 管理按钮点击事件
+        binding.btnManage.setOnClickListener(v -> {
+            isManageMode = !isManageMode;
+            binding.btnManage.setText(isManageMode ? "完成" : "管理");
+            smartDoorAdapter.setManageMode(isManageMode);
+            smartLifeAdapter.setManageMode(isManageMode);
+        });
     }
     
     private void initView() {
@@ -37,7 +52,7 @@ public class MoreActivity extends AppCompatActivity {
         binding.smartLifeGrid.setLayoutManager(new GridLayoutManager(this, 4));
         
         // 初始化适配器
-        smartDoorAdapter = new MoreFunctionAdapter(this, true);
+        smartDoorAdapter = new MoreFunctionAdapter(this, false);
         smartLifeAdapter = new MoreFunctionAdapter(this, false);
         
         binding.smartDoorGrid.setAdapter(smartDoorAdapter);
@@ -45,60 +60,38 @@ public class MoreActivity extends AppCompatActivity {
     }
     
     private void initData() {
+        // 获取保存的选中状态
+        SharedPreferences prefs = getSharedPreferences("QuickActions", MODE_PRIVATE);
+        Set<String> savedFunctions = new HashSet<>();
+        int count = prefs.getInt("count", 0);
+        for (int i = 0; i < count; i++) {
+            savedFunctions.add(prefs.getString("function_" + i, ""));
+        }
+        
         // 初始化智能门禁功能列表
-        List<FunctionItem> smartDoorItems = new ArrayList<>();
-        smartDoorItems.add(new FunctionItem("户户通", R.drawable.ic_huhuotong, true));
-        smartDoorItems.add(new FunctionItem("监视", R.drawable.ic_monitor, true));
-        smartDoorItems.add(new FunctionItem("邀请访客", R.drawable.ic_yaoqingfangke, true));
-        smartDoorItems.add(new FunctionItem("呼叫记录", R.drawable.ic_call_history, false));
-        smartDoorItems.add(new FunctionItem("呼叫电梯", R.drawable.ic_hujiaodianti, true));
-        smartDoorItems.add(new FunctionItem("扫码开门", R.drawable.ic_scan, true));
+        List<FunctionItem> smartDoorItems = getSmartDoorItems();
+        // 根据保存的状态设置选中状态
+        for (FunctionItem item : smartDoorItems) {
+            item.setSelected(savedFunctions.contains(item.getName()));
+            item.setHomeApp(item.isSelected());
+        }
         
         // 初始化智慧生活功能列表
-        List<FunctionItem> smartLifeItems = new ArrayList<>();
-        smartLifeItems.add(new FunctionItem("社区通知", R.drawable.ic_shequtongzhi, true));
-        smartLifeItems.add(new FunctionItem("报事报修", R.drawable.ic_repair, false));
-        smartLifeItems.add(new FunctionItem("社区评价", R.drawable.ic_evaluate, false));
-        smartLifeItems.add(new FunctionItem("投诉建议", R.drawable.ic_suggest, false));
-        smartLifeItems.add(new FunctionItem("报警记录", R.drawable.ic_baojingjilu, true));
+        List<FunctionItem> smartLifeItems = getSmartLifeItems();
+        // 根据保存的状态设置选中状态
+        for (FunctionItem item : smartLifeItems) {
+            item.setSelected(savedFunctions.contains(item.getName()));
+            item.setHomeApp(item.isSelected());
+        }
         
         smartDoorAdapter.setItems(smartDoorItems);
         smartLifeAdapter.setItems(smartLifeItems);
     }
     
-    private void initListeners() {
-        binding.btnBack.setOnClickListener(v -> {
-            saveAndFinish();
-        });
-        
-        binding.btnManage.setOnClickListener(v -> {
-            isManageMode = !isManageMode;
-            binding.btnManage.setText(isManageMode ? "完成" : "管理");
-            smartDoorAdapter.setManageMode(isManageMode);
-            smartLifeAdapter.setManageMode(isManageMode);
-            
-            if (!isManageMode) {
-                checkAndResetDefaultApps();
-                saveAndFinish();
-            }
-        });
-    }
-    
-    private void checkAndResetDefaultApps() {
-        int selectedCount = smartDoorAdapter.getSelectedCount() + 
-                          smartLifeAdapter.getSelectedCount();
-        
-        if (selectedCount == 0) {
-            // 重置前7个应用为选中状态
-            smartDoorAdapter.resetDefaultSelection();
-            smartLifeAdapter.resetDefaultSelection();
-            Toast.makeText(this, "已重置默认应用", Toast.LENGTH_SHORT).show();
-        }
-    }
-    
     private void saveAndFinish() {
-        // 收集所有选中的功能
         ArrayList<String> selectedFunctions = new ArrayList<>();
+        
+        // 收集所有选中的功能
         for (FunctionItem item : smartDoorAdapter.getItems()) {
             if (item.isSelected()) {
                 selectedFunctions.add(item.getName());
@@ -110,10 +103,54 @@ public class MoreActivity extends AppCompatActivity {
             }
         }
         
-        // 将选中的功能返回给MainActivity
+        // 确保选中的功能数量不超过7个（为"更多"按钮预留一个位置）
+        if (selectedFunctions.size() > 7) {
+            selectedFunctions = new ArrayList<>(selectedFunctions.subList(0, 7));
+        }
+        
+        // 保存选中状态到SharedPreferences
+        saveSelectedFunctions(selectedFunctions);
+        
         Intent resultIntent = new Intent();
         resultIntent.putStringArrayListExtra(SELECTED_FUNCTIONS, selectedFunctions);
         setResult(Activity.RESULT_OK, resultIntent);
         finish();
+    }
+
+    private void saveSelectedFunctions(ArrayList<String> selectedFunctions) {
+        SharedPreferences prefs = getSharedPreferences("QuickActions", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        
+        // 清除之前的所有选中状态
+        editor.clear();
+        
+        // 保存新的选中状态
+        editor.putInt("count", selectedFunctions.size());
+        for (int i = 0; i < selectedFunctions.size(); i++) {
+            editor.putString("function_" + i, selectedFunctions.get(i));
+        }
+        
+        editor.apply();
+    }
+
+    private List<FunctionItem> getSmartDoorItems() {
+        List<FunctionItem> items = new ArrayList<>();
+        items.add(new FunctionItem("户户通", R.drawable.ic_huhuotong, true));
+        items.add(new FunctionItem("监控", R.drawable.ic_jiankong, true));
+        items.add(new FunctionItem("邀请访客", R.drawable.ic_yaoqingfangke, true));
+        items.add(new FunctionItem("呼叫电梯", R.drawable.ic_hujiaodianti, true));
+        items.add(new FunctionItem("扫码开门", R.drawable.ic_saomamenkai, true));
+        items.add(new FunctionItem("呼叫记录", R.drawable.ic_hujiaorecord, false));
+        return items;
+    }
+
+    private List<FunctionItem> getSmartLifeItems() {
+        List<FunctionItem> items = new ArrayList<>();
+        items.add(new FunctionItem("社区通知", R.drawable.ic_shequtongzhi, true));
+        items.add(new FunctionItem("报警记录", R.drawable.ic_baojingjilu, true));
+        items.add(new FunctionItem("报事报修", R.drawable.ic_repair, false));
+        items.add(new FunctionItem("社区评价", R.drawable.ic_evaluate, false));
+        items.add(new FunctionItem("投诉建议", R.drawable.ic_suggest, false));
+        return items;
     }
 } 
