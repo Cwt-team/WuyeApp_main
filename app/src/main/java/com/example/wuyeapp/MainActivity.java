@@ -309,19 +309,17 @@ public class MainActivity extends AppCompatActivity {
         Intent intent;
         switch (functionName) {
             case "户户通":
-                // TODO: 启动户户通功能
-                Toast.makeText(this, "启动户户通", Toast.LENGTH_SHORT).show();
+                intent = new Intent(this, DialPadActivity.class);
+                startActivity(intent);
                 break;
             case "监控":
-                // TODO: 启动监控功能
                 Toast.makeText(this, "启动监控", Toast.LENGTH_SHORT).show();
                 break;
             case "邀请访客":
-                // TODO: 启动邀请访客功能
-                Toast.makeText(this, "启动邀请访客", Toast.LENGTH_SHORT).show();
+                intent = new Intent(this, InviteVisitorActivity.class);
+                startActivity(intent);
                 break;
             case "呼叫电梯":
-                // TODO: 启动呼叫电梯功能
                 Toast.makeText(this, "启动呼叫电梯", Toast.LENGTH_SHORT).show();
                 break;
             case "扫码开门":
@@ -329,11 +327,9 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
                 break;
             case "社区通知":
-                // TODO: 启动社区通知功能
                 Toast.makeText(this, "启动社区通知", Toast.LENGTH_SHORT).show();
                 break;
             case "报警记录":
-                // TODO: 启动报警记录功能
                 Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
                 break;
             default:
