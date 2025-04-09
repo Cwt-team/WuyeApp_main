@@ -14,7 +14,7 @@ import retrofit2.http.Query;
 public interface ApiService {
     // 登录API
     @FormUrlEncoded
-    @POST("api/login")
+    @POST("api/mobile/login")
     Call<LoginResponse> login(
             @Field("username") String username,
             @Field("password") String password
