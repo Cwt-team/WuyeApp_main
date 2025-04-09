@@ -13,7 +13,11 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.content.Intent;
+import androidx.appcompat.app.AlertDialog;
+import com.example.wuyeapp.session.SessionManager;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -23,12 +27,15 @@ import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback;
 
 import com.example.wuyeapp.databinding.ActivityMainBinding;
 import com.example.wuyeapp.databinding.ItemLivingServiceBinding;
+import com.example.wuyeapp.session.SessionManager;
+import com.example.wuyeapp.utils.LogUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "MainActivity";
     private ActivityMainBinding binding;
     private ImageAdapter imageAdapter;
     private ServiceAdapter serviceAdapter;
@@ -37,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LogUtil.i(TAG + " onCreate");
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -108,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupQuickActions() {
+        LogUtil.d(TAG + " 设置快捷操作");
         // 获取 GridLayout 中的所有子 LinearLayout (每个代表一个快捷功能)
         for (int i = 0; i < binding.quickActionsGrid.getChildCount(); i++) {
             View child = binding.quickActionsGrid.getChildAt(i);
@@ -157,6 +166,9 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, MoreActivity.class);
             startActivityForResult(intent, REQUEST_CODE_MORE);
         });
+
+        // 在适当的位置（例如：onViewCreated或setup方法中）添加登出功能
+        setupLogout();
     }
 
     private void setupImageIndicators(int count) {
@@ -306,6 +318,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleQuickActionClick(String functionName) {
+        LogUtil.i(TAG + " 点击功能: " + functionName);
         Intent intent;
         switch (functionName) {
             case "户户通":
@@ -341,6 +354,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        LogUtil.i(TAG + " onResume");
         loadAndUpdateQuickActions();
     }
 
@@ -366,6 +380,37 @@ public class MainActivity extends AppCompatActivity {
         }
         
         updateQuickActions(selectedFunctions);
+    }
+
+    private void setupLogout() {
+        // 弹出退出登录对话框
+        new AlertDialog.Builder(this)
+            .setTitle("退出登录")
+            .setMessage("确定要退出登录吗？")
+            .setPositiveButton("确定", (dialog, which) -> {
+                // 清除登录会话
+                SessionManager.getInstance(this).logout();
+                
+                // 跳转到登录页面
+                Intent intent = new Intent(this, LoginActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                finish();
+            })
+            .setNegativeButton("取消", null)
+            .show();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        LogUtil.i(TAG + " onPause");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LogUtil.i(TAG + " onDestroy");
     }
 }
 

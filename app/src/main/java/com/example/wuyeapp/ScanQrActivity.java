@@ -12,14 +12,17 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import android.graphics.Color;
 import java.util.UUID;
+import com.example.wuyeapp.utils.LogUtil;
 
 public class ScanQrActivity extends AppCompatActivity {
+    private static final String TAG = "ScanQrActivity";
     
     private ActivityScanQrBinding binding;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LogUtil.i(TAG + " onCreate");
         binding = ActivityScanQrBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         
@@ -31,6 +34,7 @@ public class ScanQrActivity extends AppCompatActivity {
         
         // 刷新按钮
         binding.btnRefresh.setOnClickListener(v -> {
+            LogUtil.d(TAG + " 刷新二维码");
             generateQRCode();
             Toast.makeText(this, "二维码已刷新", Toast.LENGTH_SHORT).show();
         });
@@ -75,5 +79,11 @@ public class ScanQrActivity extends AppCompatActivity {
             e.printStackTrace();
             Toast.makeText(this, "生成二维码失败", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LogUtil.i(TAG + " onDestroy");
     }
 } 

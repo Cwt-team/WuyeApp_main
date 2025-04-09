@@ -13,8 +13,11 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import java.util.HashSet;
 import java.util.Set;
+import com.example.wuyeapp.utils.LogUtil;
 
 public class MoreActivity extends AppCompatActivity {
+    
+    private static final String TAG = "MoreActivity";
     
     public static final String SELECTED_FUNCTIONS = "selected_functions";
     
@@ -26,6 +29,7 @@ public class MoreActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LogUtil.i(TAG + " onCreate");
         binding = ActivityMoreBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         
@@ -89,6 +93,7 @@ public class MoreActivity extends AppCompatActivity {
     }
     
     private void saveAndFinish() {
+        LogUtil.d(TAG + " 保存并退出");
         ArrayList<String> selectedFunctions = new ArrayList<>();
         
         // 收集所有选中的功能
@@ -115,6 +120,8 @@ public class MoreActivity extends AppCompatActivity {
         resultIntent.putStringArrayListExtra(SELECTED_FUNCTIONS, selectedFunctions);
         setResult(Activity.RESULT_OK, resultIntent);
         finish();
+        
+        LogUtil.i(TAG + " 已选择的功能: " + selectedFunctions.toString());
     }
 
     private void saveSelectedFunctions(ArrayList<String> selectedFunctions) {
@@ -152,5 +159,11 @@ public class MoreActivity extends AppCompatActivity {
         items.add(new FunctionItem("社区评价", R.drawable.ic_evaluate, false));
         items.add(new FunctionItem("投诉建议", R.drawable.ic_suggest, false));
         return items;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LogUtil.i(TAG + " onDestroy");
     }
 } 

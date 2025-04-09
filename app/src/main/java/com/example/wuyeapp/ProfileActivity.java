@@ -4,9 +4,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.wuyeapp.databinding.ActivityProfileBinding;
+import com.example.wuyeapp.model.OwnerInfo;
+import com.example.wuyeapp.session.SessionManager;
 
 public class ProfileActivity extends AppCompatActivity {
 
@@ -17,6 +20,16 @@ public class ProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        // 获取当前登录的用户信息
+        OwnerInfo currentOwner = SessionManager.getInstance(this).getOwnerInfo();
+        if (currentOwner != null) {
+            // 显示用户电话号码
+            binding.phoneNumber.setText(currentOwner.getPhoneNumber());
+            
+            // 显示用户地址 (假设你有这个信息)
+            // binding.address.setText("某某小区-某单元-某室");
+        }
 
         // 设置底部导航栏点击事件
         binding.navHome.setOnClickListener(v -> {
@@ -36,8 +49,22 @@ public class ProfileActivity extends AppCompatActivity {
 
         // 设置功能按钮点击事件
         binding.switchOwner.setOnClickListener(v -> {
-            Toast.makeText(this, "切换业主", Toast.LENGTH_SHORT).show();
-            // TODO: 实现切换业主功能
+            // 退出登录的功能
+            new AlertDialog.Builder(this)
+                .setTitle("退出登录")
+                .setMessage("确定要退出登录吗？")
+                .setPositiveButton("确定", (dialog, which) -> {
+                    // 清除登录会话
+                    SessionManager.getInstance(this).logout();
+                    
+                    // 跳转到登录页面
+                    Intent intent = new Intent(this, LoginActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    finish();
+                })
+                .setNegativeButton("取消", null)
+                .show();
         });
 
         binding.faceRecord.setOnClickListener(v -> {

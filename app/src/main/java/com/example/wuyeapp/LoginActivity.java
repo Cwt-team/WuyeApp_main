@@ -1,0 +1,192 @@
+package com.example.wuyeapp;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.wuyeapp.database.DatabaseHelper;
+import com.example.wuyeapp.databinding.ActivityLoginBinding;
+import com.example.wuyeapp.model.OwnerInfo;
+import com.example.wuyeapp.session.SessionManager;
+import com.example.wuyeapp.utils.LogUtil;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
+import android.util.Log;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+import com.example.wuyeapp.model.LoginResponse;
+import com.example.wuyeapp.api.RetrofitClient;
+
+public class LoginActivity extends AppCompatActivity {
+
+    private static final String TAG = "LoginActivity";
+    private ActivityLoginBinding binding;
+    private DatabaseHelper databaseHelper;
+    private SessionManager sessionManager;
+    private ExecutorService executorService;
+    private Handler mainHandler;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        LogUtil.i(TAG + " onCreate");
+        binding = ActivityLoginBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        // 初始化
+        databaseHelper = new DatabaseHelper();
+        sessionManager = SessionManager.getInstance(this);
+        executorService = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
+
+        // 设置登录按钮点击事件
+        binding.btnLogin.setOnClickListener(v -> {
+            String account = binding.etAccount.getText().toString().trim();
+            String password = binding.etPassword.getText().toString().trim();
+            LogUtil.d(TAG + " 尝试登录: " + account);
+
+            if (TextUtils.isEmpty(account)) {
+                binding.tilAccount.setError("请输入账号");
+                return;
+            } else {
+                binding.tilAccount.setError(null);
+            }
+
+            if (TextUtils.isEmpty(password)) {
+                binding.tilPassword.setError("请输入密码");
+                return;
+            } else {
+                binding.tilPassword.setError(null);
+            }
+
+            // 显示加载进度
+            binding.progressBar.setVisibility(View.VISIBLE);
+            binding.btnLogin.setEnabled(false);
+
+            // 使用Retrofit调用登录API
+            RetrofitClient.getInstance().getApiService()
+                    .login(account, password)
+                    .enqueue(new Callback<LoginResponse>() {
+                        @Override
+                        public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                            // 隐藏进度条
+                            binding.progressBar.setVisibility(View.GONE);
+                            binding.btnLogin.setEnabled(true);
+                            
+                            if (response.isSuccessful() && response.body() != null) {
+                                LoginResponse loginResponse = response.body();
+                                if (loginResponse.isSuccess()) {
+                                    LogUtil.i(TAG + " 登录成功: " + account);
+                                    // 登录成功，保存会话
+                                    OwnerInfo owner = loginResponse.getOwnerInfo();
+                                    sessionManager.createLoginSession(owner);
+                                    Toast.makeText(LoginActivity.this, "登录成功", Toast.LENGTH_SHORT).show();
+                                    
+                                    // 跳转到主页
+                                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                                    startActivity(intent);
+                                    finish();
+                                } else {
+                                    LogUtil.w(TAG + " 登录失败: " + loginResponse.getMessage());
+                                    // 登录失败
+                                    Toast.makeText(LoginActivity.this, loginResponse.getMessage(), Toast.LENGTH_SHORT).show();
+                                }
+                            } else {
+                                LogUtil.w(TAG + " 登录失败: 服务器响应错误");
+                                Toast.makeText(LoginActivity.this, "服务器响应错误", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<LoginResponse> call, Throwable t) {
+                            // 隐藏进度条
+                            binding.progressBar.setVisibility(View.GONE);
+                            binding.btnLogin.setEnabled(true);
+                            
+                            LogUtil.e(TAG + " 登录请求失败: " + t.getMessage());
+                            Toast.makeText(LoginActivity.this, "网络连接失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        });
+
+        // 设置注册按钮点击事件
+        binding.tvRegister.setOnClickListener(v -> {
+            // TODO: 跳转到注册页面
+            Toast.makeText(this, "注册功能尚未开放", Toast.LENGTH_SHORT).show();
+        });
+
+        // 在onCreate方法中添加这段代码
+        binding.btnTestDb.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 显示加载对话框
+                ProgressDialog progressDialog = new ProgressDialog(LoginActivity.this);
+                progressDialog.setMessage("正在测试API连接...");
+                progressDialog.setCancelable(false);
+                progressDialog.show();
+                
+                // 测试API连接
+                Call<Void> call = RetrofitClient.getInstance().getApiService().testConnection();
+                call.enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        progressDialog.dismiss();
+                        
+                        if (response.isSuccessful()) {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(LoginActivity.this);
+                            builder.setTitle("API连接测试结果")
+                                   .setMessage("API连接成功！可以正常访问服务器。")
+                                   .setPositiveButton("确定", null)
+                                   .create()
+                                   .show();
+                        } else {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(LoginActivity.this);
+                            builder.setTitle("API连接测试结果")
+                                   .setMessage("API连接失败，服务器返回状态码: " + response.code())
+                                   .setPositiveButton("确定", null)
+                                   .create()
+                                   .show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Void> call, Throwable t) {
+                        progressDialog.dismiss();
+                        
+                        AlertDialog.Builder builder = new AlertDialog.Builder(LoginActivity.this);
+                        builder.setTitle("API连接测试结果")
+                               .setMessage("API连接失败: " + t.getMessage())
+                               .setPositiveButton("确定", null)
+                               .create()
+                               .show();
+                    }
+                });
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LogUtil.i(TAG + " onDestroy");
+        executorService.shutdown();
+    }
+} 
