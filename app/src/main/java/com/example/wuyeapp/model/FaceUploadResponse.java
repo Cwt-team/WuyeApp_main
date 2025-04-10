@@ -3,36 +3,34 @@ package com.example.wuyeapp.model;
 /**
  * 人脸上传响应类
  */
-public class FaceUploadResponse {
-    private boolean success;
-    private String message;
-    private FaceInfo data;
+public class FaceUploadResponse extends BaseResponse {
+    private FaceInfo faceInfo;
 
     public FaceUploadResponse() {
+        super();
     }
-
-    public boolean isSuccess() {
-        return success;
+    
+    public FaceInfo getFaceInfo() {
+        return faceInfo;
     }
-
-    public void setSuccess(boolean success) {
-        this.success = success;
+    
+    public void setFaceInfo(FaceInfo faceInfo) {
+        this.faceInfo = faceInfo;
+        setData(faceInfo); // 设置父类的data字段
     }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
+    
+    // 为了兼容现有代码，保留getData方法，但返回更具体的类型
+    @Override
     public FaceInfo getData() {
-        return data;
+        return faceInfo;
     }
-
-    public void setData(FaceInfo data) {
-        this.data = data;
+    
+    @Override
+    public void setData(Object data) {
+        super.setData(data);
+        if (data instanceof FaceInfo) {
+            this.faceInfo = (FaceInfo) data;
+        }
     }
 
     /**

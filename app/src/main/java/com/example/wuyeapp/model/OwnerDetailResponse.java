@@ -1,32 +1,13 @@
 package com.example.wuyeapp.model;
 
-public class OwnerDetailResponse {
-    private boolean success;
-    private String message;
-    private OwnerDetailData data;
+import com.google.gson.Gson;
+import com.google.gson.internal.LinkedTreeMap;
+import com.example.wuyeapp.utils.LogUtil;
 
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public OwnerDetailData getData() {
-        return data;
-    }
-
-    public void setData(OwnerDetailData data) {
-        this.data = data;
+public class OwnerDetailResponse extends BaseResponse<OwnerDetailResponse.OwnerDetailData> {
+    
+    public OwnerDetailResponse() {
+        super();
     }
 
     public static class OwnerDetailData {

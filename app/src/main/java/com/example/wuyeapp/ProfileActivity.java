@@ -8,13 +8,14 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.wuyeapp.api.ApiClient;
+import com.example.wuyeapp.api.RetrofitClient;
 import com.example.wuyeapp.api.ApiService;
 import com.example.wuyeapp.databinding.ActivityProfileBinding;
 import com.example.wuyeapp.model.OwnerDetailResponse;
 import com.example.wuyeapp.model.OwnerInfo;
 import com.example.wuyeapp.session.SessionManager;
 import com.example.wuyeapp.utils.LogUtil;
+import com.google.gson.Gson;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -34,16 +35,24 @@ public class ProfileActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         // 初始化API服务
-        apiService = ApiClient.getClient().create(ApiService.class);
+        apiService = RetrofitClient.getInstance().getApiService();
 
         // 获取当前登录的用户信息
         OwnerInfo currentOwner = SessionManager.getInstance(this).getOwnerInfo();
-        if (currentOwner != null) {
+        if (currentOwner != null && currentOwner.getId() != 0) {
             // 显示基本用户信息（从Session中获取）
             binding.phoneNumber.setText(currentOwner.getPhoneNumber());
             
             // 从API获取详细信息
             fetchOwnerDetail(currentOwner.getId());
+        } else {
+            LogUtil.e(TAG + " 当前登录用户信息无效");
+            Toast.makeText(this, "登录信息已失效，请重新登录", Toast.LENGTH_SHORT).show();
+            // 跳转到登录页面
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
         }
 
         // 设置底部导航栏点击事件
@@ -115,16 +124,32 @@ public class ProfileActivity extends AppCompatActivity {
             public void onResponse(Call<OwnerDetailResponse> call, Response<OwnerDetailResponse> response) {
                 binding.loadingProgress.setVisibility(View.GONE);
                 
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    ownerDetail = response.body().getData();
-                    updateUI(ownerDetail);
-                } else {
-                    String errorMsg = "获取业主信息失败";
+                if (response.isSuccessful()) {
+                    LogUtil.d(TAG + " API响应成功");
                     if (response.body() != null) {
-                        errorMsg = response.body().getMessage();
+                        LogUtil.d(TAG + " 响应体不为空");
+                        
+                        if (response.body().isSuccess()) {
+                            LogUtil.d(TAG + " 业务处理成功");
+                            ownerDetail = response.body().getData();
+                            if (ownerDetail != null) {
+                                LogUtil.d(TAG + " 成功获取业主详情数据");
+                                updateUI(ownerDetail);
+                            } else {
+                                LogUtil.e(TAG + " 业主详情数据为空");
+                                Toast.makeText(ProfileActivity.this, "获取数据失败", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            LogUtil.e(TAG + " 业务处理失败: " + response.body().getMessage());
+                            Toast.makeText(ProfileActivity.this, response.body().getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        LogUtil.e(TAG + " 响应体为空");
+                        Toast.makeText(ProfileActivity.this, "服务器响应异常", Toast.LENGTH_SHORT).show();
                     }
-                    LogUtil.e(TAG + " " + errorMsg);
-                    Toast.makeText(ProfileActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                } else {
+                    LogUtil.e(TAG + " API响应失败: " + response.code());
+                    Toast.makeText(ProfileActivity.this, "网络请求失败: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
             }
 

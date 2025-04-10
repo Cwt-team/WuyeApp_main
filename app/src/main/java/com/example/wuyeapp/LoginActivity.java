@@ -11,7 +11,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.wuyeapp.database.DatabaseHelper;
 import com.example.wuyeapp.databinding.ActivityLoginBinding;
 import com.example.wuyeapp.model.OwnerInfo;
 import com.example.wuyeapp.session.SessionManager;
@@ -39,7 +38,6 @@ public class LoginActivity extends AppCompatActivity {
 
     private static final String TAG = "LoginActivity";
     private ActivityLoginBinding binding;
-    private DatabaseHelper databaseHelper;
     private SessionManager sessionManager;
     private ExecutorService executorService;
     private Handler mainHandler;
@@ -52,7 +50,6 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         // 初始化
-        databaseHelper = new DatabaseHelper();
         sessionManager = SessionManager.getInstance(this);
         executorService = Executors.newSingleThreadExecutor();
         mainHandler = new Handler(Looper.getMainLooper());

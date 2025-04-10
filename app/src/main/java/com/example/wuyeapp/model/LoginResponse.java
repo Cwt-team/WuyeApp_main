@@ -1,42 +1,25 @@
 package com.example.wuyeapp.model;
 
-public class LoginResponse {
-    private boolean success;
-    private String message;
+public class LoginResponse extends BaseResponse {
     private OwnerInfo ownerInfo;
     
     // 构造函数
     public LoginResponse() {
+        super();
     }
     
     public LoginResponse(boolean success, String message, OwnerInfo ownerInfo) {
-        this.success = success;
-        this.message = message;
+        super(success, message);
         this.ownerInfo = ownerInfo;
     }
     
-    // getter和setter方法
-    public boolean isSuccess() {
-        return success;
-    }
-    
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
-    
-    public String getMessage() {
-        return message;
-    }
-    
-    public void setMessage(String message) {
-        this.message = message;
-    }
-    
+    // 只需要保留特有的字段的getter和setter
     public OwnerInfo getOwnerInfo() {
         return ownerInfo;
     }
     
     public void setOwnerInfo(OwnerInfo ownerInfo) {
         this.ownerInfo = ownerInfo;
+        setData(ownerInfo); // 同时设置父类的data字段
     }
 }

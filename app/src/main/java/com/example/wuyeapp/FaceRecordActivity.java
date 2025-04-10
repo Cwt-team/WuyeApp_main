@@ -16,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.example.wuyeapp.api.ApiClient;
+import com.example.wuyeapp.api.RetrofitClient;
 import com.example.wuyeapp.api.ApiService;
 import com.example.wuyeapp.databinding.ActivityFaceRecordBinding;
 import com.example.wuyeapp.model.FaceUploadResponse;
@@ -53,7 +53,7 @@ public class FaceRecordActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
         
         // 初始化API服务
-        apiService = ApiClient.getClient().create(ApiService.class);
+        apiService = RetrofitClient.getInstance().getApiService();
         
         // 获取传递的业主ID
         ownerId = getIntent().getLongExtra("ownerId", 0);

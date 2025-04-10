@@ -3,10 +3,10 @@ package com.example.wuyeapp.model;
 /**
  * 基础响应类，用于通用API响应
  */
-public class BaseResponse {
+public class BaseResponse<T> {
     private boolean success;
     private String message;
-    private Object data;
+    private T data;
 
     public BaseResponse() {
     }
@@ -14,6 +14,12 @@ public class BaseResponse {
     public BaseResponse(boolean success, String message) {
         this.success = success;
         this.message = message;
+    }
+
+    public BaseResponse(boolean success, String message, T data) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
     }
 
     public boolean isSuccess() {
@@ -32,11 +38,11 @@ public class BaseResponse {
         this.message = message;
     }
 
-    public Object getData() {
+    public T getData() {
         return data;
     }
 
-    public void setData(Object data) {
+    public void setData(T data) {
         this.data = data;
     }
 } 

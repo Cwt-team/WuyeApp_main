@@ -4,7 +4,8 @@ import android.util.Log;
 
 public class LogUtil {
     private static final String DEFAULT_TAG = "WuyeApp";
-    private static boolean isDebug = true;  // 可以通过BuildConfig.DEBUG来控制
+    // 临时使用一个静态变量来控制日志输出
+    private static boolean isDebug = true;  // 在开发阶段设置为true
 
     public static void d(String msg) {
         if (isDebug) {
@@ -33,6 +34,23 @@ public class LogUtil {
     public static void d(String tag, String msg) {
         if (isDebug) {
             Log.d(tag, msg);
+        }
+    }
+
+    public static void logToFile(String msg) {
+        if (!isDebug) return;
+        // 实现文件写入逻辑
+    }
+
+    public static void d(String tag, String format, Object... args) {
+        if (isDebug) {
+            Log.d(tag, String.format(format, args));
+        }
+    }
+
+    public static void e(String msg, Throwable tr) {
+        if (isDebug) {
+            Log.e(DEFAULT_TAG, msg, tr);
         }
     }
 
