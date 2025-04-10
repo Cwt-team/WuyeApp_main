@@ -53,8 +53,6 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
     testImplementation("org.mockito:mockito-core:4.0.0")
-    // 修改为旧版MySQL JDBC驱动
-    implementation("mysql:mysql-connector-java:5.1.45")
     // Retrofit库
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")

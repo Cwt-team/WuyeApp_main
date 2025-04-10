@@ -133,7 +133,8 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, "注册功能尚未开放", Toast.LENGTH_SHORT).show();
         });
 
-        // 在onCreate方法中添加这段代码
+        // 将数据库测试按钮改为API连接测试按钮
+        binding.btnTestDb.setText("测试API连接");
         binding.btnTestDb.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -166,11 +167,10 @@ public class LoginActivity extends AppCompatActivity {
                                    .show();
                         }
                     }
-
+                    
                     @Override
                     public void onFailure(Call<Void> call, Throwable t) {
                         progressDialog.dismiss();
-                        
                         AlertDialog.Builder builder = new AlertDialog.Builder(LoginActivity.this);
                         builder.setTitle("API连接测试结果")
                                .setMessage("API连接失败: " + t.getMessage())
