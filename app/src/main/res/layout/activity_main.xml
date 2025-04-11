@@ -192,6 +192,27 @@
                 android:text="报警记录"/>
         </LinearLayout>
         <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:id="@+id/btnRepair">
+            
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_repair" />
+                
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="报事报修" />
+        </LinearLayout>
+        <LinearLayout
             android:id="@+id/btnMore"
             android:layout_width="0dp"
             android:layout_height="wrap_content"

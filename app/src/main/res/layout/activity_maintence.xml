@@ -1,0 +1,105 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/banner"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:src="@drawable/repair_banner"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="社区报修服务"
+        android:textSize="24sp"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="为您提供便捷的报修解决方案"
+        android:textSize="16sp"
+        android:layout_gravity="center"
+        android:layout_marginTop="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btn_public_facilities"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="公共设施"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_personal_residence"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="个人住所"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_history"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="历史记录" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/notice_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="报修须知"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/notice_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="1. 请详细描述问题，以便维修人员更好地了解情况\n2. 可上传图片帮助说明问题\n3. 请保持联系方式畅通，以便维修人员联系\n4. 紧急情况请直接拨打物业电话"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/contact_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="物业服务热线"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/contact_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="400-888-8888"
+        android:textColor="@android:color/holo_blue_dark"
+        android:layout_marginTop="8dp"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <TextView
+        android:id="@+id/contactNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="拨打物业电话"
+        android:textColor="@android:color/holo_blue_dark"
+        android:layout_marginTop="16dp"
+        android:clickable="true"
+        android:focusable="true" />
+</LinearLayout>

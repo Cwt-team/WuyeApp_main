@@ -75,5 +75,20 @@
             android:name=".FaceRecordActivity"
             android:exported="false"/>
 
+        <activity 
+        android:name=".Maintenance" 
+        android:exported="true">
+        </activity>
+
+        <activity 
+        android:name=".PublicFacilitiesRepairActivity"
+        android:exported="true">
+        </activity>
+
+        <activity 
+        android:name=".PersonalResidenceRepairActivity"
+        android:exported="true">
+        </activity>
+        
     </application>
 </manifest>

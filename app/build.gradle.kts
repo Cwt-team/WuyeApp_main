@@ -33,6 +33,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        dataBinding = true
     }
 
     testOptions {
@@ -59,4 +60,12 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
     implementation("com.google.code.gson:gson:2.10.1")
+    // ✅ 添加 RecyclerView 支持
+    implementation("androidx.recyclerview:recyclerview:1.3.1")
+}
+
+buildscript {
+    dependencies {
+        classpath("com.android.tools.build:gradle:7.4.2")
+    }
 }

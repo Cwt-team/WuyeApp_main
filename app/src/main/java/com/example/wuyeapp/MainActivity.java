@@ -113,6 +113,16 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
         
+        // 设置报事报修按钮的点击事件
+        binding.btnRepair.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, Maintenance.class);
+                startActivity(intent);
+            }
+        });
+
+
     }
 
     private void setupQuickActions() {
@@ -344,6 +354,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case "报警记录":
                 Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
+                break;
+            case "报事报修":
+                intent = new Intent(this, Maintenance.class);
+                startActivity(intent);
                 break;
             default:
                 Toast.makeText(this, "功能开发中...", Toast.LENGTH_SHORT).show();

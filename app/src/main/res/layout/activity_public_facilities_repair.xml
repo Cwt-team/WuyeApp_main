@@ -1,0 +1,45 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/community_text_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="选择社区"
+        android:textSize="18sp"
+        android:padding="10dp"
+        android:background="@android:color/darker_gray" />
+
+    <EditText
+        android:id="@+id/title_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="报修标题" />
+
+    <EditText
+        android:id="@+id/description_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="问题描述" />
+
+    <EditText
+        android:id="@+id/contact_name_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="联系人姓名" />
+
+    <EditText
+        android:id="@+id/contact_phone_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="联系电话" />
+
+    <Button
+        android:id="@+id/submit_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="提交报修" />
+</LinearLayout>

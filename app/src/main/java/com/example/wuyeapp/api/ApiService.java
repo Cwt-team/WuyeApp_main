@@ -6,6 +6,7 @@ import com.example.wuyeapp.model.OwnerDetailResponse;
 import com.example.wuyeapp.model.OwnerUpdateRequest;
 import com.example.wuyeapp.model.FaceUploadResponse;
 import com.example.wuyeapp.model.BaseResponse;
+import com.example.wuyeapp.model.MaintenanceRequest;
 
 import okhttp3.MultipartBody;
 import retrofit2.Call;
@@ -54,4 +55,8 @@ public interface ApiService {
         @Path("id") long id,
         @Part MultipartBody.Part image
     );
+
+    // 提交报修请求
+    @POST("api/mobile/maintenance/request")
+    Call<BaseResponse> submitMaintenanceRequest(@Body MaintenanceRequest request);
 }
