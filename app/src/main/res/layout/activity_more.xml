@@ -51,13 +51,36 @@
             android:padding="16dp">
 
             <!-- 智能门禁 -->
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="智能门禁"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="16dp"/>
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+                
+                <View
+                    android:layout_width="4dp"
+                    android:layout_height="16dp"
+                    android:background="#00C37B" />
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="智能门禁"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"/>
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="点击标记可选择是否在主页显示（最多选择7个）"
+                    android:textSize="12sp"
+                    android:textColor="#999999"
+                    android:layout_marginStart="8dp"
+                    android:visibility="gone"
+                    android:id="@+id/tv_smart_door_hint"/>
+            </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/smart_door_grid"
@@ -65,14 +88,37 @@
                 android:layout_height="wrap_content"/>
 
             <!-- 智慧生活 -->
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="智慧生活"
-                android:textSize="16sp"
-                android:textStyle="bold"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginTop="24dp"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="16dp">
+                
+                <View
+                    android:layout_width="4dp"
+                    android:layout_height="16dp"
+                    android:background="#00C37B" />
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="智慧生活"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"/>
+                    
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="点击标记可选择是否在主页显示（最多选择7个）"
+                    android:textSize="12sp"
+                    android:textColor="#999999"
+                    android:layout_marginStart="8dp"
+                    android:visibility="gone"
+                    android:id="@+id/tv_smart_life_hint"/>
+            </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/smart_life_grid"

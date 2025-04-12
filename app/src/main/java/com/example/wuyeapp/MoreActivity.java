@@ -45,6 +45,12 @@ public class MoreActivity extends AppCompatActivity {
         binding.btnManage.setOnClickListener(v -> {
             isManageMode = !isManageMode;
             binding.btnManage.setText(isManageMode ? "完成" : "管理");
+            
+            // 显示/隐藏提示文字
+            binding.tvSmartDoorHint.setVisibility(isManageMode ? View.VISIBLE : View.GONE);
+            binding.tvSmartLifeHint.setVisibility(isManageMode ? View.VISIBLE : View.GONE);
+            
+            // 设置adapter管理模式
             smartDoorAdapter.setManageMode(isManageMode);
             smartLifeAdapter.setManageMode(isManageMode);
         });

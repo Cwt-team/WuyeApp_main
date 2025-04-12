@@ -5,10 +5,13 @@
     android:padding="8dp">
 
     <LinearLayout
+        android:id="@+id/function_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:background="@drawable/function_item_background">
 
         <FrameLayout
             android:layout_width="48dp"
@@ -24,8 +27,9 @@
                 android:id="@+id/select_icon"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:layout_gravity="top|end"
-                android:visibility="gone"/>
+                android:layout_gravity="bottom|end"
+                android:visibility="gone"
+                android:src="@drawable/ic_check"/>
         </FrameLayout>
 
         <TextView

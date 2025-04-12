@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -49,26 +50,27 @@ public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapte
         holder.icon.setImageResource(item.getIconResId());
         holder.name.setText(item.getName());
         
+        // 设置容器的选中状态
+        holder.container.setSelected(item.isHomeApp());
+        
         // 管理模式下显示选择状态
         if (isManageMode) {
-            holder.selectIcon.setVisibility(View.VISIBLE);
-            if (item.isHomeApp()) {
-                // 如果是首页应用，显示删除图标
-                holder.selectIcon.setImageResource(R.drawable.ic_remove);
-                holder.selectIcon.setColorFilter(Color.RED);
-            } else {
-                // 如果不是首页应用，显示添加图标
-                holder.selectIcon.setImageResource(R.drawable.ic_add);
-                holder.selectIcon.setColorFilter(Color.BLUE);
-            }
+            // 根据选择状态显示或隐藏勾选图标
+            holder.selectIcon.setVisibility(item.isHomeApp() ? View.VISIBLE : View.GONE);
         } else {
             holder.selectIcon.setVisibility(View.GONE);
         }
         
         holder.itemView.setOnClickListener(v -> {
             if (isManageMode) {
-                item.setHomeApp(!item.isHomeApp());
-                item.setSelected(item.isHomeApp());
+                boolean newState = !item.isHomeApp();
+                item.setHomeApp(newState);
+                item.setSelected(newState);
+                
+                // 更新UI
+                holder.container.setSelected(newState);
+                holder.selectIcon.setVisibility(newState ? View.VISIBLE : View.GONE);
+                
                 notifyItemChanged(position);
             }
         });
@@ -103,12 +105,14 @@ public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapte
     }
     
     static class ViewHolder extends RecyclerView.ViewHolder {
+        LinearLayout container;
         ImageView icon;
         TextView name;
         ImageView selectIcon;
         
         ViewHolder(View itemView) {
             super(itemView);
+            container = itemView.findViewById(R.id.function_container);
             icon = itemView.findViewById(R.id.function_icon);
             name = itemView.findViewById(R.id.function_name);
             selectIcon = itemView.findViewById(R.id.select_icon);
