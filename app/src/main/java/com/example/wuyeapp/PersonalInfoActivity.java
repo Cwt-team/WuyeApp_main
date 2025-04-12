@@ -98,7 +98,26 @@ public class PersonalInfoActivity extends AppCompatActivity {
             binding.tvGender.setText("M".equals(ownerDetail.getGender()) ? "男" : "女");
             binding.tvIdCard.setText(maskIdCard(ownerDetail.getIdCard()));
             binding.tvCommunity.setText(ownerDetail.getCommunityInfo().getName());
-            binding.tvHouse.setText(ownerDetail.getHouseInfo().getFullName());
+            
+            // 使用详细的房屋信息
+            StringBuilder houseBuilder = new StringBuilder();
+            if (ownerDetail.getHouseInfo().getDistrictNumber() != null) {
+                houseBuilder.append(ownerDetail.getHouseInfo().getDistrictNumber()).append("区 ");
+            }
+            
+            if (ownerDetail.getHouseInfo().getBuildingNumber() != null) {
+                houseBuilder.append(ownerDetail.getHouseInfo().getBuildingNumber()).append("栋 ");
+            }
+            
+            if (ownerDetail.getHouseInfo().getUnitNumber() != null) {
+                houseBuilder.append(ownerDetail.getHouseInfo().getUnitNumber()).append("单元 ");
+            }
+            
+            if (ownerDetail.getHouseInfo().getRoomNumber() != null) {
+                houseBuilder.append(ownerDetail.getHouseInfo().getRoomNumber()).append("室");
+            }
+            
+            binding.tvHouse.setText(houseBuilder.toString());
             
             // 更新可编辑信息
             binding.etEmail.setText(ownerDetail.getEmail());

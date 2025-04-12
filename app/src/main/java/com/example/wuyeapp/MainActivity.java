@@ -176,9 +176,6 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, MoreActivity.class);
             startActivityForResult(intent, REQUEST_CODE_MORE);
         });
-
-        // 在适当的位置（例如：onViewCreated或setup方法中）添加登出功能
-        setupLogout();
     }
 
     private void setupImageIndicators(int count) {
@@ -394,25 +391,6 @@ public class MainActivity extends AppCompatActivity {
         }
         
         updateQuickActions(selectedFunctions);
-    }
-
-    private void setupLogout() {
-        // 弹出退出登录对话框
-        new AlertDialog.Builder(this)
-            .setTitle("退出登录")
-            .setMessage("确定要退出登录吗？")
-            .setPositiveButton("确定", (dialog, which) -> {
-                // 清除登录会话
-                SessionManager.getInstance(this).logout();
-                
-                // 跳转到登录页面
-                Intent intent = new Intent(this, LoginActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent);
-                finish();
-            })
-            .setNegativeButton("取消", null)
-            .show();
     }
 
     @Override

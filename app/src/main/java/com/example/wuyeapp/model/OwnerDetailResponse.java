@@ -180,6 +180,10 @@ public class OwnerDetailResponse extends BaseResponse<OwnerDetailResponse.OwnerD
         public static class HouseInfo {
             private int id;
             private String fullName;
+            private String districtNumber;
+            private String buildingNumber;
+            private String unitNumber;
+            private String roomNumber;
             
             public int getId() {
                 return id;
@@ -195,6 +199,38 @@ public class OwnerDetailResponse extends BaseResponse<OwnerDetailResponse.OwnerD
             
             public void setFullName(String fullName) {
                 this.fullName = fullName;
+            }
+            
+            public String getDistrictNumber() {
+                return districtNumber;
+            }
+            
+            public void setDistrictNumber(String districtNumber) {
+                this.districtNumber = districtNumber;
+            }
+            
+            public String getBuildingNumber() {
+                return buildingNumber;
+            }
+            
+            public void setBuildingNumber(String buildingNumber) {
+                this.buildingNumber = buildingNumber;
+            }
+            
+            public String getUnitNumber() {
+                return unitNumber;
+            }
+            
+            public void setUnitNumber(String unitNumber) {
+                this.unitNumber = unitNumber;
+            }
+            
+            public String getRoomNumber() {
+                return roomNumber;
+            }
+            
+            public void setRoomNumber(String roomNumber) {
+                this.roomNumber = roomNumber;
             }
         }
         

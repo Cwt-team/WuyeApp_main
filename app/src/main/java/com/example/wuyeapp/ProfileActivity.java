@@ -165,8 +165,27 @@ public class ProfileActivity extends AppCompatActivity {
     // 使用业主详细信息更新UI
     private void updateUI(OwnerDetailResponse.OwnerDetailData ownerDetail) {
         if (ownerDetail != null) {
-            // 更新地址信息
-            binding.address.setText(ownerDetail.getHouseInfo().getFullName());
+            // 更新地址信息 - 显示完整的房屋信息
+            StringBuilder addressBuilder = new StringBuilder();
+            addressBuilder.append(ownerDetail.getCommunityInfo().getName());
+            
+            if (ownerDetail.getHouseInfo().getDistrictNumber() != null) {
+                addressBuilder.append("-").append(ownerDetail.getHouseInfo().getDistrictNumber()).append("区");
+            }
+            
+            if (ownerDetail.getHouseInfo().getBuildingNumber() != null) {
+                addressBuilder.append("-").append(ownerDetail.getHouseInfo().getBuildingNumber()).append("栋");
+            }
+            
+            if (ownerDetail.getHouseInfo().getUnitNumber() != null) {
+                addressBuilder.append("-").append(ownerDetail.getHouseInfo().getUnitNumber()).append("单元");
+            }
+            
+            if (ownerDetail.getHouseInfo().getRoomNumber() != null) {
+                addressBuilder.append("-").append(ownerDetail.getHouseInfo().getRoomNumber()).append("室");
+            }
+            
+            binding.address.setText(addressBuilder.toString());
             
             // 更新其他UI元素
             // 根据面部识别状态更新人脸录制按钮的状态
