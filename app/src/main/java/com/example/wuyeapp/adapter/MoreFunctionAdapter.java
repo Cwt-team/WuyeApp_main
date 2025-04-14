@@ -1,0 +1,125 @@
+package com.example.wuyeapp.adapter;
+
+import android.content.Context;
+import android.graphics.Color;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.wuyeapp.R;
+import com.example.wuyeapp.common.FunctionItem;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MoreFunctionAdapter extends RecyclerView.Adapter<MoreFunctionAdapter.ViewHolder> {
+    
+    private List<FunctionItem> items;
+    private boolean isManageMode;
+    private Context context;
+    
+    public MoreFunctionAdapter(Context context, boolean isManageMode) {
+        this.context = context;
+        this.isManageMode = isManageMode;
+        this.items = new ArrayList<>();
+    }
+    
+    public void setManageMode(boolean manageMode) {
+        this.isManageMode = manageMode;
+        notifyDataSetChanged();
+    }
+    
+    public void setItems(List<FunctionItem> items) {
+        this.items = items;
+        notifyDataSetChanged();
+    }
+    
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_more_function, parent, false);
+        return new ViewHolder(view);
+    }
+    
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        FunctionItem item = items.get(position);
+        
+        holder.icon.setImageResource(item.getIconResId());
+        holder.name.setText(item.getName());
+        
+        // 设置容器的选中状态
+        holder.container.setSelected(item.isHomeApp());
+        
+        // 管理模式下显示选择状态
+        if (isManageMode) {
+            // 根据选择状态显示或隐藏勾选图标
+            holder.selectIcon.setVisibility(item.isHomeApp() ? View.VISIBLE : View.GONE);
+        } else {
+            holder.selectIcon.setVisibility(View.GONE);
+        }
+        
+        holder.itemView.setOnClickListener(v -> {
+            if (isManageMode) {
+                boolean newState = !item.isHomeApp();
+                item.setHomeApp(newState);
+                item.setSelected(newState);
+                
+                // 更新UI
+                holder.container.setSelected(newState);
+                holder.selectIcon.setVisibility(newState ? View.VISIBLE : View.GONE);
+                
+                notifyItemChanged(position);
+            }
+        });
+    }
+    
+    @Override
+    public int getItemCount() {
+        return items != null ? items.size() : 0;
+    }
+    
+    public int getSelectedCount() {
+        int count = 0;
+        for (FunctionItem item : items) {
+            if (item.isSelected()) count++;
+        }
+        return count;
+    }
+    
+    public void resetDefaultSelection() {
+        int count = 0;
+        for (FunctionItem item : items) {
+            boolean shouldBeSelected = count < 7;
+            item.setSelected(shouldBeSelected);
+            item.setHomeApp(shouldBeSelected);
+            count++;
+        }
+        notifyDataSetChanged();
+    }
+    
+    public List<FunctionItem> getItems() {
+        return items;
+    }
+    
+    static class ViewHolder extends RecyclerView.ViewHolder {
+        LinearLayout container;
+        ImageView icon;
+        TextView name;
+        ImageView selectIcon;
+        
+        ViewHolder(View itemView) {
+            super(itemView);
+            container = itemView.findViewById(R.id.function_container);
+            icon = itemView.findViewById(R.id.function_icon);
+            name = itemView.findViewById(R.id.function_name);
+            selectIcon = itemView.findViewById(R.id.select_icon);
+        }
+    }
+} 

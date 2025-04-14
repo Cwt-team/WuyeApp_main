@@ -3,7 +3,7 @@ package com.example.wuyeapp.session;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.example.wuyeapp.model.OwnerInfo;
+import com.example.wuyeapp.model.user.OwnerInfo;
 import com.example.wuyeapp.utils.LogUtil;
 
 public class SessionManager {
@@ -14,6 +14,7 @@ public class SessionManager {
     private static final String KEY_OWNER_NAME = "ownerName";
     private static final String KEY_OWNER_PHONE = "ownerPhone";
     private static final String KEY_OWNER_ACCOUNT = "ownerAccount";
+    private static final String KEY_AUTH_TOKEN = "authToken";
     
     private SharedPreferences pref;
     private SharedPreferences.Editor editor;
@@ -38,13 +39,14 @@ public class SessionManager {
     }
     
     // 保存登录状态和用户信息
-    public void createLoginSession(OwnerInfo owner) {
+    public void createLoginSession(OwnerInfo owner, String token) {
         LogUtil.i(TAG + " 创建登录会话: " + owner.getName());
         editor.putBoolean(KEY_IS_LOGGED_IN, true);
         editor.putLong(KEY_OWNER_ID, owner.getId());
         editor.putString(KEY_OWNER_NAME, owner.getName());
         editor.putString(KEY_OWNER_PHONE, owner.getPhoneNumber());
         editor.putString(KEY_OWNER_ACCOUNT, owner.getAccount());
+        editor.putString(KEY_AUTH_TOKEN, token);  // 保存认证token
         editor.commit();
     }
     
@@ -73,5 +75,10 @@ public class SessionManager {
         LogUtil.i(TAG + " 退出登录");
         editor.clear();
         editor.commit();
+    }
+    
+    // 获取认证Token
+    public String getAuthToken() {
+        return pref.getString(KEY_AUTH_TOKEN, "");
     }
 } 
