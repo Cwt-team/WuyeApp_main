@@ -36,6 +36,7 @@ import com.example.wuyeapp.ui.visitor.DialPadActivity;
 import com.example.wuyeapp.ui.visitor.InviteVisitorActivity;
 import com.example.wuyeapp.ui.visitor.ScanQrActivity;
 import com.example.wuyeapp.utils.LogUtil;
+import com.example.wuyeapp.ui.maintenance.MaintenanceActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -124,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
         binding.btnRepair.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, Maintenance.class);
+                Intent intent = new Intent(MainActivity.this, MaintenanceActivity.class);
                 startActivity(intent);
             }
         });
@@ -360,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
                 break;
             case "报事报修":
-                intent = new Intent(this, Maintenance.class);
+                intent = new Intent(this, MaintenanceActivity.class);
                 startActivity(intent);
                 break;
             default:

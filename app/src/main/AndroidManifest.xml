@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.wuyeapp">
 
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -10,7 +14,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
-        android:name=".WuyeApplication"
+        android:name=".app.WuyeApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -24,7 +28,7 @@
         tools:ignore="ExtraText">
 
         <activity
-            android:name=".SplashActivity"
+            android:name=".ui.auth.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar">
             <intent-filter>
@@ -34,60 +38,70 @@
         </activity>
 
         <activity
-            android:name=".LoginActivity"
+            android:name=".ui.auth.LoginActivity"
             android:exported="false">
         </activity>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.home.MainActivity"
             android:exported="true">
         </activity>
 
         <activity
-            android:name=".ProfileActivity"
+            android:name=".ui.profile.ProfileActivity"
             android:exported="false"/>
 
         <activity
-            android:name=".DialPadActivity"
+            android:name=".ui.visitor.DialPadActivity"
             android:exported="false" />
 
         <activity
-            android:name=".InviteVisitorActivity"
+            android:name=".ui.visitor.InviteVisitorActivity"
             android:exported="false"/>
         
         <activity
-            android:name=".ScanQrActivity"
+            android:name=".ui.visitor.ScanQrActivity"
             android:exported="false"/>
 
         <activity
-            android:name=".MoreActivity"
+            android:name=".ui.home.MoreActivity"
             android:exported="false"/>
             
         <activity
-            android:name=".SettingsActivity"
+            android:name=".ui.profile.SettingsActivity"
             android:exported="false"/>
             
         <activity
-            android:name=".PersonalInfoActivity"
+            android:name=".ui.profile.PersonalInfoActivity"
             android:exported="false"/>
             
         <activity
-            android:name=".FaceRecordActivity"
+            android:name=".ui.profile.FaceRecordActivity"
             android:exported="false"/>
+
+        <activity
+            android:name=".ui.maintenance.Maintenance"
+            android:exported="true">
+        </activity>
 
         <activity 
-        android:name=".Maintenance" 
+        android:name=".ui.maintenance.MaintenanceListActivity" 
         android:exported="true">
         </activity>
 
         <activity 
-        android:name=".PublicFacilitiesRepairActivity"
+        android:name=".ui.maintenance.PublicFacilitiesRepairActivity"
         android:exported="true">
         </activity>
 
         <activity 
-        android:name=".PersonalResidenceRepairActivity"
+        android:name=".ui.maintenance.PersonalResidenceRepairActivity"
         android:exported="true">
+        </activity>
+
+        <activity 
+            android:name=".ui.maintenance.MaintenanceActivity"
+            android:exported="false">
         </activity>
         
     </application>

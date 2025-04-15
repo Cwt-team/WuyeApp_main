@@ -1,19 +1,9 @@
 package com.example.wuyeapp.model.maintenance;
 
 import com.example.wuyeapp.model.base.BaseResponse;
-
 import java.util.List;
 
-public class MaintenanceListResponse extends BaseResponse {
-    private MaintenanceListData data;
-    
-    public MaintenanceListData getData() {
-        return data;
-    }
-    
-    public void setData(MaintenanceListData data) {
-        this.data = data;
-    }
+public class MaintenanceListResponse extends BaseResponse<MaintenanceListResponse.MaintenanceListData> {
     
     public static class MaintenanceListData {
         private List<MaintenanceRequest> items;

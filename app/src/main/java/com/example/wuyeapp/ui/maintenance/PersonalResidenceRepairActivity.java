@@ -64,17 +64,27 @@ public class PersonalResidenceRepairActivity extends AppCompatActivity {
         }
 
         OwnerInfo owner = sessionManager.getOwnerInfo();
+        
+        // 添加社区ID检查
+        if (owner == null || owner.getCommunityId() <= 0) {
+            Toast.makeText(this, "无法获取社区信息，请联系管理员", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         MaintenanceRequest request = new MaintenanceRequest(
             title, 
             description, 
             "personal_residence", 
             "normal",
-            owner.getCommunityId(),
+            owner.getCommunityId(), // 确保这里有效
             owner.getHouseId(),
-            owner.getName(),
-            owner.getPhoneNumber()
+            contactName,
+            contactPhone
         );
-
+        
+        // 添加日志以便调试
+        Log.d(TAG, "提交报修请求: communityId=" + owner.getCommunityId() + ", houseId=" + owner.getHouseId());
+        
         RetrofitClient.getInstance().getApiService()
             .submitMaintenanceRequest(request)
             .enqueue(new Callback<BaseResponse>() {

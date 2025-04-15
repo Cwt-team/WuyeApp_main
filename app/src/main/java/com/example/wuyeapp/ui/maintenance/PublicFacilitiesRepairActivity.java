@@ -78,9 +78,12 @@ public class PublicFacilitiesRepairActivity extends AppCompatActivity {
         }
         
         if (selectedCommunityId <= 0) {
-            Toast.makeText(this, "请选择社区", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "请选择有效的社区", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // 添加日志以便调试
+        Log.d(TAG, "提交公共设施报修请求: communityId=" + selectedCommunityId);
 
         // 显示加载进度
         binding.progressBar.setVisibility(View.VISIBLE);

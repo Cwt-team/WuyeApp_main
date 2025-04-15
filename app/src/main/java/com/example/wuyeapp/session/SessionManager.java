@@ -46,6 +46,7 @@ public class SessionManager {
         editor.putString(KEY_OWNER_NAME, owner.getName());
         editor.putString(KEY_OWNER_PHONE, owner.getPhoneNumber());
         editor.putString(KEY_OWNER_ACCOUNT, owner.getAccount());
+        editor.putInt("KEY_COMMUNITY_ID", owner.getCommunityId());
         editor.putString(KEY_AUTH_TOKEN, token);  // 保存认证token
         editor.commit();
     }
@@ -66,6 +67,7 @@ public class SessionManager {
         owner.setName(pref.getString(KEY_OWNER_NAME, ""));
         owner.setPhoneNumber(pref.getString(KEY_OWNER_PHONE, ""));
         owner.setAccount(pref.getString(KEY_OWNER_ACCOUNT, ""));
+        owner.setCommunityId(pref.getInt("KEY_COMMUNITY_ID", 0));
         
         return owner;
     }
