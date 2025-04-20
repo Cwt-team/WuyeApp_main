@@ -37,6 +37,7 @@ import com.example.wuyeapp.ui.visitor.InviteVisitorActivity;
 import com.example.wuyeapp.ui.visitor.ScanQrActivity;
 import com.example.wuyeapp.utils.LogUtil;
 import com.example.wuyeapp.ui.maintenance.MaintenanceActivity;
+import com.example.wuyeapp.ui.settings.SipSettingsActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -411,6 +412,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         LogUtil.i(TAG + " onDestroy");
+    }
+
+    private void navigateToSipSettings() {
+        Intent intent = new Intent(this, SipSettingsActivity.class);
+        startActivity(intent);
     }
 }
 

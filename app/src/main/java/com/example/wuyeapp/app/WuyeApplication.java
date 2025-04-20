@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.os.SystemClock;
 
 import com.example.wuyeapp.utils.LogUtil;
+import com.example.wuyeapp.sip.SipManager;
 
 public class WuyeApplication extends Application {
     private static Context context;
@@ -53,6 +54,16 @@ public class WuyeApplication extends Application {
                 LogUtil.i(activity.getClass().getSimpleName() + " - onDestroyed");
             }
         });
+        
+        // 初始化SipManager
+        SipManager.getInstance().init(this);
+    }
+
+    @Override
+    public void onTerminate() {
+        // 释放SipManager资源
+        SipManager.getInstance().release();
+        super.onTerminate();
     }
 
     public static Context getContext() {
