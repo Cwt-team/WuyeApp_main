@@ -22,9 +22,8 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // 添加PJSIP仓库
         maven {
-            url = uri("https://github.com/pjsip/pjproject/raw/master/pjsip-apps/src/swig/java/android/app/src/main/libs")
+            url = uri("https://download.linphone.org/maven_repository/org/linphone/linphone-sdk-android/")
         }
         // 阿里云公共 Maven 仓库镜像
         maven {
@@ -42,6 +41,11 @@ dependencyResolutionManagement {
         google()
         // Maven Central 仓库
         mavenCentral()
+        
+        // 添加flatDir仓库
+        flatDir {
+            dirs("${rootProject.projectDir}/app/libs")
+        }
     }
 }
 

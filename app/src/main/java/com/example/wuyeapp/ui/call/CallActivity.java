@@ -15,8 +15,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.wuyeapp.databinding.ActivityCallBinding;
 import com.example.wuyeapp.sip.SipCall;
 import com.example.wuyeapp.sip.SipCallback;
-import com.example.wuyeapp.sip.SipService;
-import com.example.wuyeapp.sip.SipManager;
+import com.example.wuyeapp.sip.LinphoneSipManager;
+import com.example.wuyeapp.sip.LinphoneService;
+import com.example.wuyeapp.sip.LinphoneCallback;
+import org.linphone.core.Call;
 
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 public class CallActivity extends AppCompatActivity implements SipCallback {
 
     private ActivityCallBinding binding;
-    private SipService sipService;
+    private LinphoneService linphoneService;
     private boolean isBound = false;
     private SipCall currentCall;
     
@@ -44,9 +46,56 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
-            SipService.SipBinder binder = (SipService.SipBinder) service;
-            sipService = binder.getService();
-            sipService.setSipCallback(CallActivity.this);
+            LinphoneService.LocalBinder binder = (LinphoneService.LocalBinder) service;
+            linphoneService = binder.getService();
+            
+            // 设置回调
+            linphoneService.setLinphoneCallback(new LinphoneCallback() {
+                @Override
+                public void onRegistrationSuccess() {
+                    // 不需要处理
+                }
+                
+                @Override
+                public void onRegistrationFailed(String reason) {
+                    // 不需要处理
+                }
+                
+                @Override
+                public void onIncomingCall(Call call, String caller) {
+                    // 不应该在通话界面再接到其他来电
+                }
+                
+                @Override
+                public void onCallProgress() {
+                    // 呼叫进行中
+                }
+                
+                @Override
+                public void onCallEstablished() {
+                    runOnUiThread(() -> {
+                        binding.tvCallState.setText("通话中");
+                        startCallTimer();
+                    });
+                }
+                
+                @Override
+                public void onCallEnded() {
+                    runOnUiThread(() -> {
+                        Toast.makeText(CallActivity.this, "通话已结束", Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                }
+                
+                @Override
+                public void onCallFailed(String reason) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(CallActivity.this, "通话失败: " + reason, Toast.LENGTH_SHORT).show();
+                        finish();
+                    });
+                }
+            });
+            
             isBound = true;
             
             // 检查是接听来电还是拨打电话
@@ -55,7 +104,7 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
-            sipService = null;
+            linphoneService = null;
             isBound = false;
         }
     };
@@ -67,7 +116,11 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
         setContentView(binding.getRoot());
         
         // 设置SIP回调
-        SipManager.getInstance().setSipCallback(this);
+        LinphoneSipManager.getInstance().setSipCallback(this);
+        
+        // 绑定Linphone服务
+        Intent intent = new Intent(this, LinphoneService.class);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
         
         // 设置按钮监听器
         setupButtonListeners();
@@ -79,7 +132,9 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
     private void setupButtonListeners() {
         // 挂断按钮
         binding.btnHangup.setOnClickListener(v -> {
-            if (currentCall != null) {
+            if (linphoneService != null) {
+                linphoneService.hangupCall();
+            } else if (currentCall != null) {
                 currentCall.hangup();
             }
             finish();
@@ -88,8 +143,9 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
         // 麦克风静音按钮
         binding.btnMute.setOnClickListener(v -> {
             isMuted = !isMuted;
-            // 实际应用中需要实现静音功能
-            // currentCall.setMicrophoneMute(isMuted);
+            if (linphoneService != null) {
+                linphoneService.toggleMute(isMuted);
+            }
             
             // 更新UI
             // binding.btnMute.setImageResource(isMuted ? R.drawable.ic_mic_on : R.drawable.ic_mic_off);
@@ -99,8 +155,9 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
         // 扬声器按钮
         binding.btnSpeaker.setOnClickListener(v -> {
             isSpeakerOn = !isSpeakerOn;
-            // 实际应用中需要实现扬声器切换功能
-            // currentCall.setSpeakerphoneOn(isSpeakerOn);
+            if (linphoneService != null) {
+                linphoneService.toggleSpeaker(isSpeakerOn);
+            }
             
             // 更新UI
             // binding.btnSpeaker.setImageResource(isSpeakerOn ? R.drawable.ic_volume_off : R.drawable.ic_volume_up);
@@ -117,7 +174,12 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
                 if (number != null && !number.isEmpty()) {
                     binding.tvCallState.setText("正在拨打...");
                     binding.tvCallerId.setText(number);
-                    SipManager.getInstance().makeCall(number);
+                    
+                    if (linphoneService != null) {
+                        linphoneService.makeCall(number);
+                    } else {
+                        LinphoneSipManager.getInstance().makeCall(number);
+                    }
                 } else {
                     Toast.makeText(this, "无效号码", Toast.LENGTH_SHORT).show();
                     finish();
@@ -126,6 +188,13 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
                 // 接听来电
                 binding.tvCallState.setText("正在接通...");
                 binding.tvCallerId.setText(intent.getStringExtra("caller"));
+                
+                // 如果是来电，尝试接听
+                if (linphoneService != null) {
+                    linphoneService.answerCall();
+                } else if (currentCall != null) {
+                    currentCall.answer();
+                }
             }
         }
     }
@@ -159,7 +228,9 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
             isBound = false;
         }
         
-        if (currentCall != null) {
+        if (linphoneService != null) {
+            linphoneService.hangupCall();
+        } else if (currentCall != null) {
             // 确保通话结束
             try {
                 currentCall.hangup();
@@ -184,8 +255,16 @@ public class CallActivity extends AppCompatActivity implements SipCallback {
     
     @Override
     public void onIncomingCall(SipCall call, String caller) {
-        // 不应该在通话界面再接到其他来电
-        // 实际应用中，您可能需要处理在通话过程中接到新来电的情况
+        runOnUiThread(() -> {
+            currentCall = call;
+            binding.tvCallerId.setText(caller);
+            binding.tvCallState.setText("来电...");
+            
+            // 如果是自动接听模式，则自动接听
+            if ("ANSWER_CALL".equals(getIntent().getAction())) {
+                call.answer();
+            }
+        });
     }
     
     @Override

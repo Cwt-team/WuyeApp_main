@@ -3,6 +3,7 @@ package com.example.wuyeapp.ui.home;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -42,6 +43,10 @@ import com.example.wuyeapp.ui.settings.SipSettingsActivity;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.widget.Toast;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
@@ -49,6 +54,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageAdapter imageAdapter;
     private ServiceAdapter serviceAdapter;
     private static final int REQUEST_CODE_MORE = 1001;
+    private static final int PERMISSION_REQUEST_CODE = 1001;
+    private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1002;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,7 +138,22 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
+        // 请求必要的权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestPermissions(new String[]{
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.CAMERA,
+                Manifest.permission.MODIFY_AUDIO_SETTINGS,
+                Manifest.permission.MANAGE_OWN_CALLS
+            }, PERMISSION_REQUEST_CODE); // 使用定义的常量
+        }
+        
+        // Android 13+ 需要通知权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(new String[]{
+                Manifest.permission.POST_NOTIFICATIONS
+            }, NOTIFICATION_PERMISSION_REQUEST_CODE); // 使用定义的常量
+        }
     }
 
     private void setupQuickActions() {
@@ -151,7 +173,9 @@ public class MainActivity extends AppCompatActivity {
                             startActivity(intent1);
                             break;
                         case 1:
-                            Toast.makeText(this, "点击了监控", Toast.LENGTH_SHORT).show();
+                            // 改为跳转到SIP设置页面
+                            Intent sipIntent = new Intent(this, SipSettingsActivity.class);
+                            startActivity(sipIntent);
                             break;
                         case 2:
                             Intent intent2 = new Intent(this, InviteVisitorActivity.class);
@@ -342,7 +366,7 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
                 break;
             case "监控":
-                Toast.makeText(this, "启动监控", Toast.LENGTH_SHORT).show();
+                navigateToSipSettings();
                 break;
             case "邀请访客":
                 intent = new Intent(this, InviteVisitorActivity.class);
@@ -417,6 +441,28 @@ public class MainActivity extends AppCompatActivity {
     private void navigateToSipSettings() {
         Intent intent = new Intent(this, SipSettingsActivity.class);
         startActivity(intent);
+    }
+
+    // 处理权限请求结果
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        
+        // 处理权限结果
+        boolean allGranted = true;
+        for (int result : grantResults) {
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                allGranted = false;
+                break;
+            }
+        }
+        
+        if (allGranted) {
+            // 权限都已授予，可以启动服务
+        } else {
+            // 提示用户必须授予权限
+            Toast.makeText(this, "应用需要相关权限才能正常工作", Toast.LENGTH_LONG).show();
+        }
     }
 }
 

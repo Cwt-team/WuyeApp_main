@@ -17,11 +17,11 @@ import androidx.core.content.ContextCompat;
 import com.example.wuyeapp.databinding.ActivityDialPadBinding;
 import com.example.wuyeapp.sip.SipCallback;
 import com.example.wuyeapp.sip.SipCall;
-import com.example.wuyeapp.sip.SipService;
+import com.example.wuyeapp.sip.LinphoneSipManager;
 import com.example.wuyeapp.ui.settings.SipSettingsActivity;
+import com.example.wuyeapp.ui.call.CallActivity;
 
 import android.content.SharedPreferences;
-import com.example.wuyeapp.sip.SipManager;
 
 public class DialPadActivity extends AppCompatActivity implements SipCallback {
     
@@ -41,7 +41,7 @@ public class DialPadActivity extends AppCompatActivity implements SipCallback {
         requestPermissions();
         
         // 设置SIP回调
-        SipManager.getInstance().setSipCallback(this);
+        LinphoneSipManager.getInstance().setSipCallback(this);
         
         // 返回按钮点击事件
         binding.btnBack.setOnClickListener(v -> finish());

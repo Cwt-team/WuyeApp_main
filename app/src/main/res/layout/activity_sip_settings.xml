@@ -94,4 +94,13 @@
         android:padding="12dp"
         android:layout_marginTop="8dp"/>
 
+    <TextView
+        android:id="@+id/tv_test_result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
 </LinearLayout>

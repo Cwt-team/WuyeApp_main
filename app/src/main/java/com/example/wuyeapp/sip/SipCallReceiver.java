@@ -1,12 +1,18 @@
 package com.example.wuyeapp.sip;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
@@ -14,60 +20,90 @@ import com.example.wuyeapp.R;
 import com.example.wuyeapp.ui.call.CallActivity;
 
 public class SipCallReceiver extends BroadcastReceiver {
-    private static final String CHANNEL_ID = "incoming_calls";
+    private static final String TAG = "SipCallReceiver";
+    private static final String CHANNEL_ID = "IncomingCallChannel";
     private static final int NOTIFICATION_ID = 100;
-
+    
     @Override
     public void onReceive(Context context, Intent intent) {
-        if ("INCOMING_CALL".equals(intent.getAction())) {
+        String action = intent.getAction();
+        
+        if ("INCOMING_CALL".equals(action)) {
             String caller = intent.getStringExtra("caller");
+            Log.i(TAG, "收到来电通知: " + caller);
             
-            // 创建通知渠道
-            createNotificationChannel(context);
-            
-            // 创建接听来电的Intent
-            Intent answerIntent = new Intent(context, CallActivity.class);
-            answerIntent.setAction("ANSWER_CALL");
-            answerIntent.putExtra("caller", caller);
-            PendingIntent answerPendingIntent = PendingIntent.getActivity(
-                    context,
-                    0,
-                    answerIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-            
-            // 显示通知
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_call)
-                    .setContentTitle("来电")
-                    .setContentText("来自: " + caller)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setCategory(NotificationCompat.CATEGORY_CALL)
-                    .setFullScreenIntent(answerPendingIntent, true)
-                    .setContentIntent(answerPendingIntent)
-                    .setAutoCancel(true);
-            
-            NotificationManager notificationManager = 
-                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-            notificationManager.notify(NOTIFICATION_ID, builder.build());
+            // 显示来电通知
+            showIncomingCallNotification(context, caller);
             
             // 直接启动来电界面
-            answerIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(answerIntent);
+            Intent callIntent = new Intent(context, CallActivity.class);
+            callIntent.setAction("ANSWER_CALL");
+            callIntent.putExtra("caller", caller);
+            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(callIntent);
         }
     }
     
-    private void createNotificationChannel(Context context) {
+    private void showIncomingCallNotification(Context context, String caller) {
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        
+        // 创建通知渠道（Android 8.0及以上需要）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "来电通知";
-            String description = "显示SIP来电通知";
-            int importance = NotificationManager.IMPORTANCE_HIGH;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "来电通知",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
             
-            NotificationManager notificationManager = 
-                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            // 设置来电通知声音
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .build();
+            
+            Uri ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+            channel.setSound(ringtoneUri, audioAttributes);
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 1000, 500, 1000});
+            
             notificationManager.createNotificationChannel(channel);
         }
+        
+        // 创建接听按钮的Intent
+        Intent answerIntent = new Intent(context, CallActivity.class);
+        answerIntent.setAction("ANSWER_CALL");
+        answerIntent.putExtra("caller", caller);
+        PendingIntent answerPendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                answerIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        
+        // 创建拒接按钮的Intent
+        Intent declineIntent = new Intent(context, LinphoneSipManager.class);
+        declineIntent.setAction("DECLINE_CALL");
+        PendingIntent declinePendingIntent = PendingIntent.getBroadcast(
+                context,
+                1,
+                declineIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        
+        // 构建通知
+        Notification notification = new NotificationCompat.Builder(context, CHANNEL_ID)
+                .setContentTitle("来电")
+                .setContentText("来自 " + caller + " 的呼叫")
+                .setSmallIcon(R.drawable.ic_call)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setFullScreenIntent(answerPendingIntent, true) // 全屏显示
+                .addAction(R.drawable.ic_call, "接听", answerPendingIntent)
+                .addAction(R.drawable.ic_call_end, "拒接", declinePendingIntent)
+                .setAutoCancel(true)
+                .build();
+        
+        // 显示通知
+        notificationManager.notify(NOTIFICATION_ID, notification);
     }
 }

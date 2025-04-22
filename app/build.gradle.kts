@@ -62,6 +62,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     // ✅ 添加 RecyclerView 支持
     implementation("androidx.recyclerview:recyclerview:1.3.1")
+    implementation(files("libs/linphone-sdk-android-5.4.6.aar"))
 }
 
 buildscript {
