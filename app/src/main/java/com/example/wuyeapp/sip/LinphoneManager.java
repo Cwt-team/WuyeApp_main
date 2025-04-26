@@ -1,6 +1,8 @@
 package com.example.wuyeapp.sip;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.util.Log;
 
 import org.linphone.core.Call;
@@ -11,6 +13,7 @@ import org.linphone.core.MediaEncryption;
 import org.linphone.core.ProxyConfig;
 import org.linphone.core.RegistrationState;
 import org.linphone.core.TransportType;
+import org.linphone.core.Config;
 
 /**
  * Linphone核心管理类，单例模式
@@ -25,43 +28,44 @@ public class LinphoneManager {
     private CoreListenerStub listener;
     private LinphoneCallback callback;
     
+    private Context appContext;
+    
     // 私有构造函数，确保单例
     private LinphoneManager(Context context) {
-        // 初始化Linphone
         try {
             Log.i(TAG, "开始初始化Linphone Core");
+            this.appContext = context.getApplicationContext();
+            
+            // 启用详细日志
+            Factory.instance().setDebugMode(true, "LinphoneSIP");
+            
             factory = Factory.instance();
+            
+            // 创建Core
             core = factory.createCore(null, null, context);
             
-            // 配置音视频
-            Log.d(TAG, "配置Linphone Core视频设置");
+            // 详细配置网络和NAT设置
+            configureNatAndNetwork();
+            
+            // 视频配置
             core.getVideoActivationPolicy().setAutomaticallyInitiate(true);
             core.getVideoActivationPolicy().setAutomaticallyAccept(true);
             
-            // 日志更多配置信息
-            Log.d(TAG, "Linphone Core配置信息:");
-            Log.d(TAG, "Echo Cancellation enabled: " + core.isEchoCancellationEnabled());
-            Log.d(TAG, "Mic Gain: " + core.getMicGainDb());
-            Log.d(TAG, "Playback Gain: " + core.getPlaybackGainDb());
+            // 配置核心参数
+            configureCore();
             
-            // 设置网络可达
-            Log.d(TAG, "设置网络状态为可达");
+            // 音频和视频格式配置
+            configurePayloadTypes();
+            
+            // 确保网络可达
             core.setNetworkReachable(true);
 
-            // 记录传输配置
-            try {
-                Log.d(TAG, "当前使用的传输配置: " + core.getTransports().toString());
-            } catch (Exception e) {
-                Log.e(TAG, "无法获取传输配置信息", e);
-            }
-
             // 启动Core
-            Log.d(TAG, "启动Linphone Core");
             core.start();
             Log.i(TAG, "Linphone Core初始化成功");
         } catch (Exception e) {
             Log.e(TAG, "Linphone Core初始化失败", e);
-            e.printStackTrace(); // 打印详细堆栈
+            e.printStackTrace();
         }
     }
     
@@ -216,5 +220,115 @@ public class LinphoneManager {
         }
         
         instance = null;
+    }
+
+    // 配置音视频编解码器
+    private void configurePayloadTypes() {
+        try {
+            // 配置视频编解码器
+            org.linphone.core.PayloadType[] videoPayloads = core.getVideoPayloadTypes();
+            for (org.linphone.core.PayloadType pt : videoPayloads) {
+                String mimeType = pt.getMimeType();
+                // 优先使用H264
+                boolean enable = "H264".equals(mimeType);
+                Log.d(TAG, "视频编解码器: " + mimeType + " - " + (enable ? "启用" : "禁用"));
+                pt.enable(enable);
+            }
+            
+            // 配置音频编解码器
+            org.linphone.core.PayloadType[] audioPayloads = core.getAudioPayloadTypes();
+            for (org.linphone.core.PayloadType pt : audioPayloads) {
+                String mimeType = pt.getMimeType();
+                // 优先使用OPUS，其次是PCMA/PCMU
+                boolean enable = "opus".equalsIgnoreCase(mimeType) || 
+                                "PCMA".equalsIgnoreCase(mimeType) || 
+                                "PCMU".equalsIgnoreCase(mimeType);
+                Log.d(TAG, "音频编解码器: " + mimeType + " - " + (enable ? "启用" : "禁用"));
+                pt.enable(enable);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "配置编解码器失败", e);
+        }
+    }
+
+    public void setNetworkReachable() {
+        if (core != null) {
+            boolean connected = isNetworkConnected();
+            Log.d(TAG, "设置网络状态: " + (connected ? "可达" : "不可达"));
+            core.setNetworkReachable(connected);
+        }
+    }
+
+    private boolean isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnected();
+    }
+
+    public void setVideoWindows(Object localVideoView, Object remoteVideoView) {
+        if (core != null) {
+            try {
+                core.setNativePreviewWindowId(localVideoView);
+                core.setNativeVideoWindowId(remoteVideoView);
+                Log.d(TAG, "视频窗口已设置");
+            } catch (Exception e) {
+                Log.e(TAG, "设置视频窗口失败", e);
+            }
+        }
+    }
+
+    // 配置NAT和网络设置
+    private void configureNatAndNetwork() {
+        try {
+            // 配置NAT穿透
+            org.linphone.core.Transports transports = core.getTransports();
+            Log.d(TAG, "当前传输配置: UDP=" + transports.getUdpPort() + ", TCP=" + transports.getTcpPort());
+            
+            // 确保所有端口都启用，增加连接成功率
+            transports.setUdpPort(0); // 0表示随机端口
+            transports.setTcpPort(0);
+            transports.setTlsPort(0);
+            core.setTransports(transports);
+            
+            // 配置防火墙策略
+            core.setNatPolicy(createNatPolicy());
+            
+            Log.d(TAG, "NAT和网络设置已配置");
+        } catch (Exception e) {
+            Log.e(TAG, "配置NAT和网络失败", e);
+        }
+    }
+
+    // 创建NAT策略
+    private org.linphone.core.NatPolicy createNatPolicy() {
+        org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
+        natPolicy.setStunEnabled(true);
+        natPolicy.setIceEnabled(true); 
+        natPolicy.setStunServer("stun.linphone.org"); // 使用公共STUN服务器
+        return natPolicy;
+    }
+
+    // 核心配置参数
+    private void configureCore() {
+        try {
+            if (core != null) {
+                // SIP配置
+                core.getConfig().setBool("sip", "guess_hostname", true);
+                core.getConfig().setBool("sip", "register_only_when_network_is_up", true);
+                core.getConfig().setBool("sip", "auto_net_state_mon", true);
+                core.getConfig().setBool("net", "firewall_policy", false); // false=no firewall
+                
+                // 连接超时设置
+                core.getConfig().setInt("sip", "sip_tcp_transport_timeout", 15);
+                core.getConfig().setInt("sip", "register_timeout", 30);
+                
+                // 回声消除配置
+                core.getConfig().setBool("sound", "echocancellation", true);
+                
+                Log.d(TAG, "Core参数配置完成");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "配置Core参数失败", e);
+        }
     }
 } 

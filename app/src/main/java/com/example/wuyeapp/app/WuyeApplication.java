@@ -12,7 +12,8 @@ import com.example.wuyeapp.utils.LogUtil;
 // import com.example.wuyeapp.sip.SipManager;
 import com.example.wuyeapp.sip.LinphoneSipManager;
 import org.linphone.core.Factory;
-import com.example.wuyeapp.BuildConfig;
+// 注释掉有问题的导入语句
+// import com.example.wuyeapp.BuildConfig;
 
 public class WuyeApplication extends Application {
     private static Context context;

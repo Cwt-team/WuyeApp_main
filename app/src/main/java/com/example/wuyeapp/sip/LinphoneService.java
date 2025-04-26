@@ -164,22 +164,21 @@ public class LinphoneService extends Service {
             Log.d(TAG, "开始注册SIP账户: " + username + "@" + domain);
             Core core = linphoneManager.getCore();
             
-            // 首先清除现有账户
+            // 清除现有账户
             Log.d(TAG, "清除现有账户和认证信息");
             for (Account account : core.getAccountList()) {
                 core.removeAccount(account);
             }
             
-            // 清除现有认证信息
             for (AuthInfo authInfo : core.getAuthInfoList()) {
                 core.removeAuthInfo(authInfo);
             }
             
-            // 创建认证信息
-            Log.d(TAG, "创建新的认证信息: 用户名=" + username + ", 密码长度=" + password.length() + ", 域=" + domain);
+            // 创建认证信息 - 尝试更多可能的格式
+            Log.d(TAG, "创建新的认证信息: 用户名=" + username);
             AuthInfo authInfo = Factory.instance().createAuthInfo(
                     username,       // 用户名
-                    username,       // 认证用户名
+                    username,       // 认证用户名 
                     password,       // 密码
                     null,           // ha1
                     null,           // realm
@@ -187,50 +186,42 @@ public class LinphoneService extends Service {
             );
             
             // 创建账户参数
-            Log.d(TAG, "创建账户参数");
             AccountParams accountParams = core.createAccountParams();
             
-            // 设置SIP地址
+            // 尝试不同的注册方式 - 直接使用完整URI
             String sipAddress = "sip:" + username + "@" + domain;
             Log.d(TAG, "设置SIP身份地址: " + sipAddress);
             Address identity = Factory.instance().createAddress(sipAddress);
-            identity.setDisplayName(username);
             accountParams.setIdentityAddress(identity);
             
-            // 设置服务器地址
+            // 尝试不同的服务器地址格式
+            // 1. 使用完整格式，包括传输协议
             String serverAddress = "sip:" + domain + ";transport=udp";
             Log.d(TAG, "设置SIP服务器地址: " + serverAddress);
             Address address = Factory.instance().createAddress(serverAddress);
             accountParams.setServerAddress(address);
             
-            // 启用注册并设置期限
+            // 设置注册时间较长，避免超时
             accountParams.setRegisterEnabled(true);
-            accountParams.setExpires(3600);
-            Log.d(TAG, "注册期限设置为: 3600秒");
+            accountParams.setExpires(10); // 短期测试用10秒
             
             // 创建账户
-            Log.d(TAG, "创建SIP账户");
             Account account = core.createAccount(accountParams);
             
             // 添加认证信息和账户
-            Log.d(TAG, "添加认证信息和账户到Core");
             core.addAuthInfo(authInfo);
             core.addAccount(account);
             
             // 设置为默认账户
-            Log.d(TAG, "设置为默认账户");
             core.setDefaultAccount(account);
             
-            // 添加更多核心配置日志
-            Log.d(TAG, "当前Core配置:");
-            Log.d(TAG, "网络状态: " + (core.isNetworkReachable() ? "可达" : "不可达"));
-            Log.d(TAG, "验证策略: " + core.getPrimaryContactParsed().asString());
-            Log.d(TAG, "当前传输配置: " + core.getTransports().toString());
+            // 刷新网络状态
+            core.refreshRegisters();
             
             Log.i(TAG, "SIP账户注册请求已发送: " + username + "@" + domain);
         } catch (Exception e) {
             Log.e(TAG, "SIP账户注册失败", e);
-            e.printStackTrace(); // 打印详细堆栈
+            e.printStackTrace();
             if (linphoneCallback != null) {
                 linphoneCallback.onRegistrationFailed("注册异常: " + e.getMessage());
             }
