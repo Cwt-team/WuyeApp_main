@@ -259,4 +259,48 @@ public class LinphoneSipManager {
             return "无法获取Linphone版本信息: " + e.getMessage();
         }
     }
+    
+    // 拨打视频电话
+    public void makeVideoCall(String number) {
+        if (isBound && linphoneService != null) {
+            linphoneService.makeVideoCall(number);
+        } else {
+            Log.e(TAG, "SIP服务未连接，无法拨打视频电话");
+        }
+    }
+    
+    // 切换摄像头
+    public void switchCamera() {
+        if (isBound && linphoneService != null) {
+            linphoneService.switchCamera();
+        }
+    }
+    
+    // 设置视频预览和显示
+    public void setVideoSurfaces(Object localVideoSurface, Object remoteVideoSurface) {
+        if (isBound && linphoneService != null) {
+            linphoneService.setVideoSurfaces(localVideoSurface, remoteVideoSurface);
+        }
+    }
+    
+    // 转接通话
+    public void transferCall(String destination) {
+        if (isBound && linphoneService != null) {
+            linphoneService.transferCall(destination);
+        }
+    }
+    
+    // 保持/恢复通话
+    public void toggleHoldCall() {
+        if (isBound && linphoneService != null) {
+            linphoneService.toggleHoldCall();
+        }
+    }
+    
+    // 合并通话（创建会议）
+    public void mergeCallsIntoConference() {
+        if (isBound && linphoneService != null) {
+            linphoneService.mergeCallsIntoConference();
+        }
+    }
 } 

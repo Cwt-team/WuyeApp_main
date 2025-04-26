@@ -26,6 +26,7 @@ import org.linphone.core.TransportType;
 import org.linphone.core.Account;
 import org.linphone.core.AccountParams;
 import org.linphone.core.AuthInfo;
+import org.linphone.core.MediaDirection;
 
 import java.util.List;
 
@@ -161,7 +162,7 @@ public class LinphoneService extends Service {
     // 注册SIP账户
     public void registerAccount(String username, String password, String domain) {
         try {
-            Log.d(TAG, "开始注册SIP账户: " + username + "@" + domain);
+            Log.i(TAG, "====== 开始注册SIP账户: " + username + "@" + domain + " ======");
             Core core = linphoneManager.getCore();
             
             // 清除现有账户
@@ -169,16 +170,15 @@ public class LinphoneService extends Service {
             for (Account account : core.getAccountList()) {
                 core.removeAccount(account);
             }
-            
             for (AuthInfo authInfo : core.getAuthInfoList()) {
                 core.removeAuthInfo(authInfo);
             }
             
-            // 创建认证信息 - 尝试更多可能的格式
-            Log.d(TAG, "创建新的认证信息: 用户名=" + username);
+            // 创建认证信息
+            Log.d(TAG, "创建认证信息");
             AuthInfo authInfo = Factory.instance().createAuthInfo(
                     username,       // 用户名
-                    username,       // 认证用户名 
+                    username,       // 认证ID
                     password,       // 密码
                     null,           // ha1
                     null,           // realm
@@ -186,39 +186,53 @@ public class LinphoneService extends Service {
             );
             
             // 创建账户参数
+            Log.d(TAG, "创建账户参数");
             AccountParams accountParams = core.createAccountParams();
             
-            // 尝试不同的注册方式 - 直接使用完整URI
+            // 设置身份地址
             String sipAddress = "sip:" + username + "@" + domain;
-            Log.d(TAG, "设置SIP身份地址: " + sipAddress);
+            Log.d(TAG, "设置身份地址: " + sipAddress);
             Address identity = Factory.instance().createAddress(sipAddress);
             accountParams.setIdentityAddress(identity);
             
-            // 尝试不同的服务器地址格式
-            // 1. 使用完整格式，包括传输协议
-            String serverAddress = "sip:" + domain + ";transport=udp";
-            Log.d(TAG, "设置SIP服务器地址: " + serverAddress);
+            // 设置服务器地址
+            String serverAddress = "sip:" + domain;
+            Log.d(TAG, "设置服务器地址: " + serverAddress);
             Address address = Factory.instance().createAddress(serverAddress);
+            
+            // 尝试多种传输方式 - 同时支持UDP和TCP
+            address.setTransport(TransportType.Udp); // 先尝试UDP
             accountParams.setServerAddress(address);
             
-            // 设置注册时间较长，避免超时
+            // 设置NAT策略 - 启用STUN可能帮助NAT穿透
+            org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
+            natPolicy.setStunEnabled(true); // 启用STUN
+            natPolicy.setIceEnabled(true);  // 启用ICE
+            natPolicy.setStunServer("stun.linphone.org"); // 设置公共STUN服务器
+            accountParams.setNatPolicy(natPolicy);
+            
+            // 设置更长的注册超时
             accountParams.setRegisterEnabled(true);
-            accountParams.setExpires(10); // 短期测试用10秒
+            accountParams.setExpires(120); // 增加到120秒
             
             // 创建账户
+            Log.d(TAG, "创建账户");
             Account account = core.createAccount(accountParams);
             
-            // 添加认证信息和账户
+            // 添加到Core
             core.addAuthInfo(authInfo);
             core.addAccount(account);
-            
-            // 设置为默认账户
             core.setDefaultAccount(account);
             
-            // 刷新网络状态
+            // 添加额外日志
+            Log.d(TAG, "账户配置已应用");
+            Log.d(TAG, "注册状态: " + account.getState());
+            
+            // 刷新注册
+            Log.d(TAG, "刷新注册");
             core.refreshRegisters();
             
-            Log.i(TAG, "SIP账户注册请求已发送: " + username + "@" + domain);
+            Log.i(TAG, "SIP账户注册请求已发送");
         } catch (Exception e) {
             Log.e(TAG, "SIP账户注册失败", e);
             e.printStackTrace();
@@ -226,6 +240,15 @@ public class LinphoneService extends Service {
                 linphoneCallback.onRegistrationFailed("注册异常: " + e.getMessage());
             }
         }
+    }
+    
+    // 创建NAT策略
+    private org.linphone.core.NatPolicy createNatPolicy(Core core) {
+        org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
+        natPolicy.setStunEnabled(false);
+        natPolicy.setIceEnabled(false);
+        natPolicy.setUpnpEnabled(false);
+        return natPolicy;
     }
     
     // 注销SIP账户
@@ -251,34 +274,42 @@ public class LinphoneService extends Service {
     // 拨打电话（带视频选项）
     public void makeCall(String destination, boolean withVideo) {
         try {
-            Core core = linphoneManager.getCore();
-            Account account = core.getDefaultAccount();
+            Log.i(TAG, "正在拨打" + (withVideo ? "视频" : "语音") + "电话: " + destination);
             
-            if (account != null) {
-                String domain = account.getParams().getDomain();
-                
-                // 创建通话参数
-                CallParams params = core.createCallParams(null);
-                params.setMediaEncryption(MediaEncryption.None);
-                params.setVideoEnabled(withVideo);
-                
-                // 创建远程地址
-                String remoteSipUri = "sip:" + destination + "@" + domain;
-                Address remoteAddress = Factory.instance().createAddress(remoteSipUri);
-                
-                // 发起呼叫
-                core.inviteAddressWithParams(remoteAddress, params);
-                Log.i(TAG, "拨打电话: " + remoteSipUri + ", 视频: " + withVideo);
-            } else {
-                Log.e(TAG, "未注册SIP账户，无法拨打电话");
+            Core core = linphoneManager.getCore();
+            
+            // 创建地址
+            Address remoteAddress = createRemoteAddress(destination);
+            if (remoteAddress == null) {
                 if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("未注册SIP账户");
+                    linphoneCallback.onCallFailed("创建地址失败");
                 }
+                return;
             }
+            
+            // 创建呼叫参数
+            CallParams params = core.createCallParams(null);
+            
+            // 配置参数
+            params.setMediaEncryption(MediaEncryption.None);
+            params.setVideoEnabled(withVideo);
+            
+            // 如果是视频通话，确保视频启用
+            if (withVideo) {
+                Log.d(TAG, "视频通话参数配置: enableVideo=" + params.isVideoEnabled());
+                
+                // 设置视频方向
+                params.setVideoDirection(MediaDirection.SendRecv);
+            }
+            
+            // 发起呼叫
+            core.inviteAddressWithParams(remoteAddress, params);
+            
+            Log.i(TAG, "呼叫请求已发送");
         } catch (Exception e) {
             Log.e(TAG, "拨打电话失败", e);
             if (linphoneCallback != null) {
-                linphoneCallback.onCallFailed(e.getMessage());
+                linphoneCallback.onCallFailed("拨打电话异常: " + e.getMessage());
             }
         }
     }
@@ -380,5 +411,162 @@ public class LinphoneService extends Service {
                 Log.e(TAG, "处理来电信息失败", e);
             }
         }
+    }
+
+    // 拨打视频电话
+    public void makeVideoCall(String destination) {
+        makeCall(destination, true);
+    }
+
+    // 切换摄像头
+    public void switchCamera() {
+        try {
+            Core core = linphoneManager.getCore();
+            
+            // 获取当前使用的摄像头
+            String currentCameraId = core.getVideoDevice();
+            
+            // 获取所有摄像头
+            String[] devices = core.getVideoDevicesList();
+            
+            // 查找下一个摄像头
+            if (devices.length > 1) {
+                String newCameraId = null;
+                
+                // 找到当前摄像头的下一个
+                boolean foundCurrent = false;
+                for (String device : devices) {
+                    if (foundCurrent) {
+                        newCameraId = device;
+                        break;
+                    }
+                    if (device.equals(currentCameraId)) {
+                        foundCurrent = true;
+                    }
+                }
+                
+                // 如果没有找到下一个，使用第一个
+                if (newCameraId == null) {
+                    newCameraId = devices[0];
+                }
+                
+                // 设置新摄像头
+                Log.i(TAG, "切换摄像头从 " + currentCameraId + " 到 " + newCameraId);
+                core.setVideoDevice(newCameraId);
+            } else {
+                Log.w(TAG, "没有发现多个摄像头设备");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "切换摄像头失败", e);
+        }
+    }
+
+    // 设置视频预览和显示
+    public void setVideoSurfaces(Object localVideoSurface, Object remoteVideoSurface) {
+        try {
+            Core core = linphoneManager.getCore();
+            
+            // 设置预览窗口（本地摄像头）
+            core.setNativePreviewWindowId(localVideoSurface);
+            
+            // 设置视频窗口（远程视频）
+            core.setNativeVideoWindowId(remoteVideoSurface);
+            
+            Log.i(TAG, "视频窗口已配置");
+        } catch (Exception e) {
+            Log.e(TAG, "设置视频窗口失败", e);
+        }
+    }
+
+    // 转接通话
+    public void transferCall(String destination) {
+        try {
+            Core core = linphoneManager.getCore();
+            Call currentCall = core.getCurrentCall();
+            
+            if (currentCall != null) {
+                Address address = createRemoteAddress(destination);
+                if (address != null) {
+                    Log.i(TAG, "正在转接通话到: " + destination);
+                    currentCall.transfer(address.asString());
+                } else {
+                    Log.e(TAG, "创建转接地址失败");
+                }
+            } else {
+                Log.e(TAG, "没有当前通话，无法转接");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "转接通话失败", e);
+        }
+    }
+
+    // 保持/恢复通话
+    public void toggleHoldCall() {
+        try {
+            Core core = linphoneManager.getCore();
+            Call currentCall = core.getCurrentCall();
+            
+            if (currentCall != null) {
+                if (currentCall.getState() == Call.State.Paused) {
+                    Log.i(TAG, "恢复通话");
+                    currentCall.resume();
+                } else {
+                    Log.i(TAG, "保持通话");
+                    currentCall.pause();
+                }
+            } else {
+                Log.e(TAG, "没有当前通话，无法保持/恢复");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "保持/恢复通话失败", e);
+        }
+    }
+
+    // 合并通话（创建会议）
+    public void mergeCallsIntoConference() {
+        try {
+            Core core = linphoneManager.getCore();
+            
+            if (core.getCallsNb() > 1) {
+                Log.i(TAG, "合并通话到会议");
+                core.addAllToConference();
+            } else {
+                Log.e(TAG, "通话数量不足，无法创建会议");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "创建会议失败", e);
+        }
+    }
+
+    // 创建远程地址的方法添加
+    private Address createRemoteAddress(String destination) {
+        try {
+            Core core = linphoneManager.getCore();
+            
+            // 检查是否包含域名
+            if (!destination.contains("@")) {
+                // 从默认账户获取域名
+                Account account = core.getDefaultAccount();
+                if (account != null) {
+                    String domain = account.getParams().getDomain();
+                    destination = destination + "@" + domain;
+                }
+            }
+            
+            // 创建SIP地址
+            String sipUri = "sip:" + destination;
+            return Factory.instance().createAddress(sipUri);
+        } catch (Exception e) {
+            Log.e(TAG, "创建地址失败: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // 在类中添加新方法
+    public Core getCore() {
+        if (linphoneManager != null) {
+            return linphoneManager.getCore();
+        }
+        return null;
     }
 } 

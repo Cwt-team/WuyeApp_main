@@ -19,6 +19,7 @@ import org.linphone.core.Call;
 import org.linphone.core.Core;
 import org.linphone.core.ProxyConfig;
 import org.linphone.core.RegistrationState;
+import org.linphone.core.Account;
 
 public class SipSettingsActivity extends AppCompatActivity {
 
@@ -95,7 +96,7 @@ public class SipSettingsActivity extends AppCompatActivity {
     }
     
     private void testConnection() {
-        Log.i(TAG, "开始SIP连接测试");
+        Log.i(TAG, "====== 开始SIP连接测试 ======");
         
         // 检查网络状态
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -109,10 +110,37 @@ public class SipSettingsActivity extends AppCompatActivity {
             return;
         }
         
+        // 打印网络详情
+        if (activeNetwork != null) {
+            Log.i(TAG, "网络类型: " + activeNetwork.getTypeName());
+            Log.i(TAG, "网络子类型: " + activeNetwork.getSubtypeName());
+            Log.i(TAG, "网络详情: " + activeNetwork.getExtraInfo());
+            Log.i(TAG, "网络是否连接: " + activeNetwork.isConnected());
+            Log.i(TAG, "网络是否可用: " + activeNetwork.isAvailable());
+        }
+        
         // 显示测试中的提示
-        binding.tvTestResult.setText("正在检查SIP环境...");
+        binding.tvTestResult.setText("正在尝试连接SIP服务器...");
         binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.black));
         binding.tvTestResult.setVisibility(View.VISIBLE);
+        
+        // 获取SIP账户信息
+        String username = binding.etUsername.getText().toString().trim();
+        String password = binding.etPassword.getText().toString().trim();
+        String domain = binding.etDomain.getText().toString().trim();
+        String port = binding.etPort.getText().toString().trim();
+        
+        // 验证输入
+        if (username.isEmpty() || password.isEmpty() || domain.isEmpty()) {
+            binding.tvTestResult.setText("请填写完整的SIP账户信息");
+            binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+            return;
+        }
+        
+        // 如果端口不是默认的5060，则添加到域名后
+        if (!port.equals("5060")) {
+            domain = domain + ":" + port;
+        }
         
         // 设置超时处理
         timeoutHandler = new Handler();
@@ -120,54 +148,49 @@ public class SipSettingsActivity extends AppCompatActivity {
             @Override
             public void run() {
                 Log.e(TAG, "SIP连接测试超时");
-                binding.tvTestResult.setText("SIP连接测试超时，请检查网络和服务器配置");
+                binding.tvTestResult.setText("SIP连接测试超时，服务器未响应");
                 binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                
+                // 尝试获取更多诊断信息
+                LinphoneSipManager sipManager = LinphoneSipManager.getInstance();
+                if (sipManager != null && sipManager.getLinphoneService() != null) {
+                    Core core = sipManager.getLinphoneService().getCore();
+                    if (core != null) {
+                        Account account = core.getDefaultAccount();
+                        if (account != null) {
+                            Log.e(TAG, "账户注册状态: " + account.getState());
+                            Log.e(TAG, "账户错误码: " + account.getError());
+                        }
+                    }
+                }
             }
         };
-        timeoutHandler.postDelayed(timeoutRunnable, 20000); // 20秒超时
+        timeoutHandler.postDelayed(timeoutRunnable, 60000); // 60秒超时
         
-        // 尝试直接通过Socket测试服务器是否可达
-        new Thread(() -> {
-            try {
-                String domain = binding.etDomain.getText().toString().trim();
-                int port = Integer.parseInt(binding.etPort.getText().toString().trim());
-                
-                Log.d(TAG, "开始测试服务器连通性: " + domain + ":" + port);
-                
-                // 尝试连接到SIP服务器
-                java.net.Socket socket = new java.net.Socket();
-                socket.connect(new java.net.InetSocketAddress(domain, port), 5000);
-                socket.close();
-                
-                // 服务器可达，继续测试SIP
-                Log.i(TAG, "服务器可达: " + domain + ":" + port + "，继续测试SIP连接");
-                
-                runOnUiThread(() -> {
-                    binding.tvTestResult.setText("服务器可达，正在测试SIP连接...");
-                    
-                    // 保存设置
-                    saveSettings(false); // 不关闭页面的保存方法
-                    
-                    // 设置回调
-                    LinphoneSipManager sipManager = LinphoneSipManager.getInstance();
-                    Log.d(TAG, "设置LinphoneCallback");
-                    sipManager.setLinphoneCallback(createTestCallback());
-                    
-                    // 初始化SIP测试
-                    Log.d(TAG, "初始化SipManager");
-                    sipManager.init(SipSettingsActivity.this);
-                });
-            } catch (Exception e) {
-                // 服务器不可达
-                Log.e(TAG, "无法连接到服务器: " + e.getMessage(), e);
-                
-                runOnUiThread(() -> {
-                    timeoutHandler.removeCallbacks(timeoutRunnable); // 取消超时
-                    binding.tvTestResult.setText("无法连接到服务器: " + e.getMessage());
-                    binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                });
+        // 保存设置但不关闭页面
+        saveSettings(false);
+        
+        // 初始化SipManager并直接进行注册
+        final String finalDomain = domain;
+        
+        LinphoneSipManager sipManager = LinphoneSipManager.getInstance();
+        Log.d(TAG, "设置LinphoneCallback");
+        sipManager.setLinphoneCallback(createTestCallback());
+        
+        // 先初始化SipManager
+        sipManager.init(SipSettingsActivity.this);
+        
+        // 延迟一秒后直接调用testRegistration进行注册测试
+        new Handler().postDelayed(() -> {
+            if (sipManager.getLinphoneService() != null) {
+                Log.i(TAG, "直接测试SIP注册: " + username + "@" + finalDomain);
+                sipManager.testRegistration(username, password, finalDomain, createTestCallback());
+            } else {
+                binding.tvTestResult.setText("SIP服务未启动，请稍后再试");
+                binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                timeoutHandler.removeCallbacks(timeoutRunnable);
             }
-        }).start();
+        }, 1000);
     }
 
     // 创建测试回调
