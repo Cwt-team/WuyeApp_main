@@ -3,6 +3,7 @@ package com.example.wuyeapp.ui.home;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -46,6 +47,7 @@ import java.util.List;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.widget.Toast;
+import androidx.core.app.ActivityCompat;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private ServiceAdapter serviceAdapter;
     private static final int REQUEST_CODE_MORE = 1001;
     private static final int PERMISSION_REQUEST_CODE = 1001;
-    private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1002;
+    private static final int NOTIFICATION_PERMISSION_CODE = 123;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -148,11 +150,9 @@ public class MainActivity extends AppCompatActivity {
             }, PERMISSION_REQUEST_CODE); // 使用定义的常量
         }
         
-        // Android 13+ 需要通知权限
+        // 检查并请求通知权限（仅在Android 13及以上版本）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestPermissions(new String[]{
-                Manifest.permission.POST_NOTIFICATIONS
-            }, NOTIFICATION_PERMISSION_REQUEST_CODE); // 使用定义的常量
+            requestNotificationPermission();
         }
     }
 
@@ -463,6 +463,43 @@ public class MainActivity extends AppCompatActivity {
             // 提示用户必须授予权限
             Toast.makeText(this, "应用需要相关权限才能正常工作", Toast.LENGTH_LONG).show();
         }
+
+        if (requestCode == NOTIFICATION_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // 权限已授予，可以显示通知
+            } else {
+                // 权限被拒绝，可以提示用户手动开启
+                showPermissionExplanationDialog();
+            }
+        }
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, 
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS}, 
+                        NOTIFICATION_PERMISSION_CODE);
+            }
+        }
+    }
+    
+    private void showPermissionExplanationDialog() {
+        // 显示解释对话框，告诉用户为什么需要这个权限
+        new AlertDialog.Builder(this)
+            .setTitle("需要通知权限")
+            .setMessage("接收电话和消息通知需要开启通知权限，请在设置中手动开启。")
+            .setPositiveButton("去设置", (dialog, which) -> {
+                // 引导用户到应用设置页面
+                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                Uri uri = Uri.fromParts("package", getPackageName(), null);
+                intent.setData(uri);
+                startActivity(intent);
+            })
+            .setNegativeButton("取消", null)
+            .create()
+            .show();
     }
 }
 

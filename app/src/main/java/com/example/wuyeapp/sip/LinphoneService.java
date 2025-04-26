@@ -27,6 +27,7 @@ import org.linphone.core.Account;
 import org.linphone.core.AccountParams;
 import org.linphone.core.AuthInfo;
 import org.linphone.core.MediaDirection;
+import org.linphone.core.RegistrationState;
 
 import java.util.List;
 
@@ -204,16 +205,16 @@ public class LinphoneService extends Service {
             address.setTransport(TransportType.Udp); // 先尝试UDP
             accountParams.setServerAddress(address);
             
-            // 设置NAT策略 - 启用STUN可能帮助NAT穿透
+            // 设置NAT策略
             org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-            natPolicy.setStunEnabled(true); // 启用STUN
-            natPolicy.setIceEnabled(true);  // 启用ICE
-            natPolicy.setStunServer("stun.linphone.org"); // 设置公共STUN服务器
+            natPolicy.setStunEnabled(true); 
+            natPolicy.setIceEnabled(true);  
+            natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 使用Google的STUN服务器
             accountParams.setNatPolicy(natPolicy);
             
-            // 设置更长的注册超时
+            // 设置更合适的注册超时
             accountParams.setRegisterEnabled(true);
-            accountParams.setExpires(120); // 增加到120秒
+            accountParams.setExpires(120); // 使用更短的超时
             
             // 创建账户
             Log.d(TAG, "创建账户");
@@ -274,15 +275,57 @@ public class LinphoneService extends Service {
     // 拨打电话（带视频选项）
     public void makeCall(String destination, boolean withVideo) {
         try {
-            Log.i(TAG, "正在拨打" + (withVideo ? "视频" : "语音") + "电话: " + destination);
+            Log.i(TAG, "====== 开始拨打" + (withVideo ? "视频" : "语音") + "电话: " + destination + " ======");
             
             Core core = linphoneManager.getCore();
+            
+            // 检查Core状态
+            if (core == null) {
+                Log.e(TAG, "Core为空，无法拨打电话");
+                if (linphoneCallback != null) {
+                    linphoneCallback.onCallFailed("Core未初始化");
+                }
+                return;
+            }
+            
+            // 检查注册状态
+            Account account = core.getDefaultAccount();
+            if (account == null) {
+                Log.e(TAG, "没有默认账户，无法拨打电话");
+                if (linphoneCallback != null) {
+                    linphoneCallback.onCallFailed("没有配置SIP账户");
+                }
+                return;
+            }
+            
+            if (account.getState() != RegistrationState.Ok) {
+                Log.e(TAG, "SIP账户未注册成功，当前状态: " + account.getState());
+                if (linphoneCallback != null) {
+                    linphoneCallback.onCallFailed("SIP账户未注册成功");
+                }
+                return;
+            }
+            
+            // 先终止所有现有通话
+            if (core.getCallsNb() > 0) {
+                Log.d(TAG, "发现" + core.getCallsNb() + "个现有通话，正在终止");
+                for (Call call : core.getCalls()) {
+                    call.terminate();
+                }
+                // 等待通话完全终止
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    // 忽略中断
+                }
+            }
             
             // 创建地址
             Address remoteAddress = createRemoteAddress(destination);
             if (remoteAddress == null) {
+                Log.e(TAG, "创建地址失败");
                 if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("创建地址失败");
+                    linphoneCallback.onCallFailed("创建目标地址失败");
                 }
                 return;
             }
@@ -297,17 +340,23 @@ public class LinphoneService extends Service {
             // 如果是视频通话，确保视频启用
             if (withVideo) {
                 Log.d(TAG, "视频通话参数配置: enableVideo=" + params.isVideoEnabled());
-                
                 // 设置视频方向
                 params.setVideoDirection(MediaDirection.SendRecv);
             }
             
             // 发起呼叫
-            core.inviteAddressWithParams(remoteAddress, params);
+            Call call = core.inviteAddressWithParams(remoteAddress, params);
+            if (call == null) {
+                Log.e(TAG, "发起呼叫失败，call为空");
+                if (linphoneCallback != null) {
+                    linphoneCallback.onCallFailed("发起呼叫失败");
+                }
+                return;
+            }
             
-            Log.i(TAG, "呼叫请求已发送");
+            Log.i(TAG, "呼叫请求已发送，Call ID: " + call.getCallLog().getCallId());
         } catch (Exception e) {
-            Log.e(TAG, "拨打电话失败", e);
+            Log.e(TAG, "拨打电话异常", e);
             if (linphoneCallback != null) {
                 linphoneCallback.onCallFailed("拨打电话异常: " + e.getMessage());
             }
@@ -322,16 +371,45 @@ public class LinphoneService extends Service {
     // 接听来电（带视频选项）
     public void answerCall(boolean withVideo) {
         try {
+            Log.i(TAG, "====== 开始接听" + (withVideo ? "视频" : "语音") + "来电 ======");
+            
             Core core = linphoneManager.getCore();
+            if (core == null) {
+                Log.e(TAG, "Core为空，无法接听来电");
+                return;
+            }
+            
             Call call = core.getCurrentCall();
-            if (call != null) {
-                CallParams params = core.createCallParams(call);
+            if (call == null) {
+                Log.e(TAG, "没有当前来电可接听");
+                if (core.getCallsNb() > 0) {
+                    Log.d(TAG, "尝试接听第一个通话");
+                    call = core.getCalls()[0];
+                } else {
+                    Log.e(TAG, "没有任何通话可接听");
+                    return;
+                }
+            }
+            
+            if (call.getState() != Call.State.IncomingReceived) {
+                Log.e(TAG, "通话状态不是来电状态, 当前状态: " + call.getState());
+                return;
+            }
+            
+            Log.d(TAG, "准备接听来电，Call ID: " + call.getCallLog().getCallId());
+            
+            CallParams params = core.createCallParams(call);
+            if (params == null) {
+                Log.e(TAG, "创建呼叫参数失败，尝试直接接听");
+                call.accept();
+            } else {
                 params.setVideoEnabled(withVideo);
                 call.acceptWithParams(params);
-                Log.i(TAG, "已接听来电");
             }
+            
+            Log.i(TAG, "已接听来电");
         } catch (Exception e) {
-            Log.e(TAG, "接听来电失败", e);
+            Log.e(TAG, "接听来电异常", e);
         }
     }
     
@@ -538,10 +616,13 @@ public class LinphoneService extends Service {
         }
     }
 
-    // 创建远程地址的方法添加
+    // 创建远程地址的方法修改
     private Address createRemoteAddress(String destination) {
         try {
             Core core = linphoneManager.getCore();
+            
+            // 记录原始目标
+            Log.d(TAG, "创建地址, 原始目标: " + destination);
             
             // 检查是否包含域名
             if (!destination.contains("@")) {
@@ -549,15 +630,28 @@ public class LinphoneService extends Service {
                 Account account = core.getDefaultAccount();
                 if (account != null) {
                     String domain = account.getParams().getDomain();
+                    Log.d(TAG, "目标没有域名, 使用账户域名: " + domain);
                     destination = destination + "@" + domain;
+                } else {
+                    Log.e(TAG, "没有默认账户，无法获取域名");
+                    return null;
                 }
             }
             
             // 创建SIP地址
             String sipUri = "sip:" + destination;
-            return Factory.instance().createAddress(sipUri);
+            Log.d(TAG, "创建SIP URI: " + sipUri);
+            
+            Address address = Factory.instance().createAddress(sipUri);
+            if (address == null) {
+                Log.e(TAG, "创建地址失败，地址为空");
+                return null;
+            }
+            
+            Log.d(TAG, "地址创建成功: " + address.asString());
+            return address;
         } catch (Exception e) {
-            Log.e(TAG, "创建地址失败: " + e.getMessage());
+            Log.e(TAG, "创建地址异常: " + e.getMessage(), e);
             return null;
         }
     }

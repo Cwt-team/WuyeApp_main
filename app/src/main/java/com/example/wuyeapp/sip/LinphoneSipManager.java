@@ -76,23 +76,25 @@ public class LinphoneSipManager {
     }
     
     // 从设置中加载SIP账户信息并注册
-    private void loadSettingsAndRegister() {
-        SharedPreferences preferences = context.getSharedPreferences("SipSettings", Context.MODE_PRIVATE);
-        String username = preferences.getString("username", "");
-        String password = preferences.getString("password", "");
-        String domain = preferences.getString("domain", "");
-        String port = preferences.getString("port", "5060");
-        
-        if (!username.isEmpty() && !password.isEmpty() && !domain.isEmpty()) {
-            // 如果端口不是默认的5060，则添加到域名后
-            if (!port.equals("5060")) {
-                domain = domain + ":" + port;
-            }
+    public void loadSettingsAndRegister() {
+        if (isBound && linphoneService != null) {
+            SharedPreferences preferences = context.getSharedPreferences("SipSettings", Context.MODE_PRIVATE);
+            String username = preferences.getString("username", "");
+            String password = preferences.getString("password", "");
+            String domain = preferences.getString("domain", "");
+            String port = preferences.getString("port", "5060");
             
-            // 注册SIP账户
-            if (linphoneService != null) {
+            if (!username.isEmpty() && !password.isEmpty() && !domain.isEmpty()) {
+                // 如果端口不是默认的5060，则添加到域名后
+                if (!port.equals("5060")) {
+                    domain = domain + ":" + port;
+                }
+                
+                // 注册SIP账户
                 linphoneService.registerAccount(username, password, domain);
             }
+        } else {
+            Log.e(TAG, "服务未连接，无法加载SIP设置和注册");
         }
     }
     

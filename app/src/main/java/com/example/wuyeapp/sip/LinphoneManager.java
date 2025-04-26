@@ -325,25 +325,37 @@ public class LinphoneManager {
                 core.getConfig().setBool("sip", "guess_hostname", true);
                 core.getConfig().setBool("sip", "register_only_when_network_is_up", true);
                 core.getConfig().setBool("sip", "auto_net_state_mon", true);
+                
+                // 使用更宽松的配置
                 core.getConfig().setBool("net", "firewall_policy", false);
                 
-                // 设置用户代理以匹配Linphone客户端格式
+                // 修改用户代理以更好兼容
                 core.setUserAgent("Linphone-Android", "");
                 
-                // 增加SIP超时设置
-                core.getConfig().setInt("sip", "sip_tcp_transport_timeout", 30);
-                core.getConfig().setInt("sip", "register_timeout", 60);
-                core.getConfig().setInt("sip", "default_expires", 3600);
+                // 增加SIP超时设置，提高可靠性
+                core.getConfig().setInt("sip", "sip_tcp_transport_timeout", 15);
+                core.getConfig().setInt("sip", "register_timeout", 30);
+                core.getConfig().setInt("sip", "default_expires", 60);  // 降低超时值
                 
-                // 回声消除配置 - 修改为兼容写法
-                core.setEchoCancellationEnabled(true);  // 替换 enableEchoCancellation
+                // 允许在同一域中进行呼叫
+                core.getConfig().setBool("sip", "use_domain_in_route", true);
+                
+                // DNS SRV配置
+                core.getConfig().setBool("net", "dns_srv_enabled", true);
+                
+                // 回声消除配置
+                core.setEchoCancellationEnabled(true);  
                 
                 // 自适应抖动补偿
-                core.setAdaptiveRateControlEnabled(true);  // 替换 enableAdaptiveRateControl
+                core.setAdaptiveRateControlEnabled(true);  
+                
+                // 调整RTP参数
+                core.getConfig().setInt("rtp", "rtcp_xr_enabled", 1);
+                core.getConfig().setInt("rtp", "audio_jitt_comp", 60); 
                 
                 // 日志记录
                 Log.i(TAG, "回声消除已启用: " + core.isEchoCancellationEnabled());
-                Log.i(TAG, "自适应比特率控制已启用: " + core.isAdaptiveRateControlEnabled());  // 替换 adaptiveRateControlEnabled
+                Log.i(TAG, "自适应比特率控制已启用: " + core.isAdaptiveRateControlEnabled());  
                 
                 Log.d(TAG, "Core参数配置完成");
             }
