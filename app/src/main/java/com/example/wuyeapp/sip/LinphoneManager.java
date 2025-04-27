@@ -245,14 +245,13 @@ public class LinphoneManager {
                 pt.enable(enable);
             }
             
-            // 配置音频编解码器
+            // 配置音频编解码器 - 只启用基本的编解码器提高兼容性
             org.linphone.core.PayloadType[] audioPayloads = core.getAudioPayloadTypes();
             for (org.linphone.core.PayloadType pt : audioPayloads) {
                 String mimeType = pt.getMimeType();
-                // 优先使用OPUS、PCMA和PCMU
-                boolean enable = "opus".equalsIgnoreCase(mimeType) || 
-                                "PCMA".equalsIgnoreCase(mimeType) || 
-                                "PCMU".equalsIgnoreCase(mimeType);
+                // 仅启用PCMA和PCMU，禁用其他编解码器（包括opus）以提高兼容性
+                boolean enable = "PCMA".equalsIgnoreCase(mimeType) || 
+                               "PCMU".equalsIgnoreCase(mimeType);
                 Log.d(TAG, "音频编解码器: " + mimeType + " - " + (enable ? "启用" : "禁用"));
                 pt.enable(enable);
             }
@@ -357,7 +356,35 @@ public class LinphoneManager {
                 Log.i(TAG, "回声消除已启用: " + core.isEchoCancellationEnabled());
                 Log.i(TAG, "自适应比特率控制已启用: " + core.isAdaptiveRateControlEnabled());  
                 
-                Log.d(TAG, "Core参数配置完成");
+                // 更多细节配置 - 使用配置文件方式
+                core.getConfig().setBool("sip", "reuse_authorization", true);
+                core.getConfig().setInt("sip", "transport_timeout", 30);
+                
+                // RTP配置
+                core.getConfig().setInt("rtp", "audio_jitt_comp", 100);
+                core.getConfig().setInt("rtp", "audio_rtp_port", 7078);
+                core.getConfig().setInt("rtp", "audio_rtp_port_max", 7178);
+                
+                // SIP账户相关设置 - 通过配置文件设置不兼容的API
+                core.getConfig().setBool("sip", "use_rport", true);
+                core.getConfig().setBool("sip", "session_timers_enabled", false);
+                core.getConfig().setBool("sip", "avpf_enabled", false);
+                
+                // 禁用IPv6和其他可能导致问题的功能
+                core.getConfig().setBool("sip", "ipv6_enabled", false);
+                core.getConfig().setBool("sip", "rtp_bundle", false);
+                
+                // 禁用STUN和ICE，有时这些会导致问题
+                core.getConfig().setBool("net", "ice_enabled", false);
+                core.getConfig().setBool("net", "stun_enabled", false);
+                
+                // 禁用opus编解码器配置
+                core.getConfig().setBool("audio_codec", "opus/48000/2", false);
+                
+                // 其他优化设置
+                core.getConfig().setBool("misc", "real_early_media", true);
+                
+                Log.d(TAG, "通过配置文件设置了额外的SIP和RTP参数");
             }
         } catch (Exception e) {
             Log.e(TAG, "配置Core参数失败", e);

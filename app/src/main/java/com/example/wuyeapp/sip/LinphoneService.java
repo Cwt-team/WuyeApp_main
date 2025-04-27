@@ -28,6 +28,7 @@ import org.linphone.core.AccountParams;
 import org.linphone.core.AuthInfo;
 import org.linphone.core.MediaDirection;
 import org.linphone.core.RegistrationState;
+import org.linphone.core.PayloadType;
 
 import java.util.List;
 
@@ -233,6 +234,11 @@ public class LinphoneService extends Service {
             Log.d(TAG, "刷新注册");
             core.refreshRegisters();
             
+            // 创建账户参数后，只使用兼容的方法
+            accountParams.setContactUriParameters(null); // 清除任何额外的URI参数
+            accountParams.setPushNotificationAllowed(true); // 禁用推送通知
+            accountParams.setQualityReportingEnabled(false); // 禁用质量报告
+            
             Log.i(TAG, "SIP账户注册请求已发送");
         } catch (Exception e) {
             Log.e(TAG, "SIP账户注册失败", e);
@@ -275,90 +281,76 @@ public class LinphoneService extends Service {
     // 拨打电话（带视频选项）
     public void makeCall(String destination, boolean withVideo) {
         try {
-            Log.i(TAG, "====== 开始拨打" + (withVideo ? "视频" : "语音") + "电话: " + destination + " ======");
+            Log.i(TAG, "====== 开始拨打电话到: " + destination + " ======");
             
             Core core = linphoneManager.getCore();
-            
-            // 检查Core状态
             if (core == null) {
                 Log.e(TAG, "Core为空，无法拨打电话");
-                if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("Core未初始化");
-                }
                 return;
             }
             
-            // 检查注册状态
-            Account account = core.getDefaultAccount();
-            if (account == null) {
-                Log.e(TAG, "没有默认账户，无法拨打电话");
-                if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("没有配置SIP账户");
-                }
-                return;
-            }
+            // 优化FreeSwitch专用配置
+            core.getConfig().setBool("net", "ice_enabled", false); // 禁用ICE
             
-            if (account.getState() != RegistrationState.Ok) {
-                Log.e(TAG, "SIP账户未注册成功，当前状态: " + account.getState());
-                if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("SIP账户未注册成功");
-                }
-                return;
-            }
-            
-            // 先终止所有现有通话
-            if (core.getCallsNb() > 0) {
-                Log.d(TAG, "发现" + core.getCallsNb() + "个现有通话，正在终止");
-                for (Call call : core.getCalls()) {
-                    call.terminate();
-                }
-                // 等待通话完全终止
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    // 忽略中断
-                }
-            }
+            // 配置编解码器 - FreeSwitch兼容性最好的顺序
+            configureFreeswitchCompatibleCodecs(core);
             
             // 创建地址
             Address remoteAddress = createRemoteAddress(destination);
-            if (remoteAddress == null) {
-                Log.e(TAG, "创建地址失败");
-                if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("创建目标地址失败");
-                }
-                return;
-            }
+            if (remoteAddress == null) return;
             
-            // 创建呼叫参数
+            // 创建参数
             CallParams params = core.createCallParams(null);
-            
-            // 配置参数
-            params.setMediaEncryption(MediaEncryption.None);
-            params.setVideoEnabled(withVideo);
-            
-            // 如果是视频通话，确保视频启用
-            if (withVideo) {
-                Log.d(TAG, "视频通话参数配置: enableVideo=" + params.isVideoEnabled());
-                // 设置视频方向
-                params.setVideoDirection(MediaDirection.SendRecv);
-            }
-            
-            // 发起呼叫
-            Call call = core.inviteAddressWithParams(remoteAddress, params);
-            if (call == null) {
-                Log.e(TAG, "发起呼叫失败，call为空");
-                if (linphoneCallback != null) {
-                    linphoneCallback.onCallFailed("发起呼叫失败");
+            if (params != null) {
+                // FreeSwitch特别喜欢这些配置
+                params.setMediaEncryption(MediaEncryption.None);
+                params.setVideoEnabled(false);
+                params.setAudioDirection(MediaDirection.SendRecv);
+                params.setEarlyMediaSendingEnabled(false); // 改为false试试
+                
+                // 自定义头，帮助服务器识别
+                params.addCustomHeader("X-FS-Support", "update_display,timer");
+                params.addCustomHeader("X-App-Type", "WuyeApp");
+                
+                // 设置更合适的RTP超时值
+                core.getConfig().setInt("rtp", "timeout", 30);
+                
+                // 清除任何先前的NAT策略
+                org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
+                natPolicy.setStunEnabled(false);
+                natPolicy.setIceEnabled(false);
+                
+                // 发起呼叫
+                Call call = core.inviteAddressWithParams(remoteAddress, params);
+                
+                if (call != null) {
+                    Log.i(TAG, "呼叫请求已发送");
                 }
-                return;
             }
-            
-            Log.i(TAG, "呼叫请求已发送，Call ID: " + call.getCallLog().getCallId());
         } catch (Exception e) {
             Log.e(TAG, "拨打电话异常", e);
-            if (linphoneCallback != null) {
-                linphoneCallback.onCallFailed("拨打电话异常: " + e.getMessage());
+        }
+    }
+    
+    // FreeSwitch优化的编解码器配置
+    private void configureFreeswitchCompatibleCodecs(Core core) {
+        for (PayloadType pt : core.getAudioPayloadTypes()) {
+            String mimeType = pt.getMimeType();
+            int clockRate = pt.getClockRate();
+            
+            // FreeSwitch最兼容的编解码器配置
+            if (mimeType.equals("PCMA") && clockRate == 8000) {
+                pt.enable(true);
+                pt.setRecvFmtp("annexb=no");
+                Log.d(TAG, "优先启用PCMA编解码器");
+            } 
+            else if (mimeType.equals("PCMU") && clockRate == 8000) {
+                pt.enable(true);
+                Log.d(TAG, "启用PCMU编解码器");
+            }
+            else {
+                // 禁用其他可能造成问题的编解码器
+                pt.enable(false);
             }
         }
     }
