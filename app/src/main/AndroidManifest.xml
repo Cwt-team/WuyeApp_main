@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.wuyeapp">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -23,7 +22,8 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_LOGS" />
+    <uses-permission android:name="android.permission.READ_LOGS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".app.WuyeApplication"
@@ -92,28 +92,23 @@
             android:exported="false"/>
 
         <activity
-            android:name=".ui.maintenance.Maintenance"
+            android:name=".ui.maintenance.MaintenanceActivity"
             android:exported="true">
         </activity>
 
         <activity 
-        android:name=".ui.maintenance.MaintenanceListActivity" 
-        android:exported="true">
+            android:name=".ui.maintenance.MaintenanceListActivity" 
+            android:exported="true">
         </activity>
 
         <activity 
-        android:name=".ui.maintenance.PublicFacilitiesRepairActivity"
-        android:exported="true">
+            android:name=".ui.maintenance.PublicFacilitiesRepairActivity"
+            android:exported="true">
         </activity>
 
         <activity 
-        android:name=".ui.maintenance.PersonalResidenceRepairActivity"
-        android:exported="true">
-        </activity>
-
-        <activity 
-            android:name=".ui.maintenance.MaintenanceActivity"
-            android:exported="false">
+            android:name=".ui.maintenance.PersonalResidenceRepairActivity"
+            android:exported="true">
         </activity>
         
         <activity
@@ -126,22 +121,6 @@
             android:foregroundServiceType="phoneCall"
             android:enabled="true"
             android:exported="false" />
-
-        <service
-            android:name=".sip.linphone.LinphoneService"
-            android:foregroundServiceType="phoneCall"
-            android:enabled="true"
-            android:exported="false">
-        </service>
-
-        <service
-            android:name=".sip.linphone.LinphoneCallService"
-            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.telecom.ConnectionService" />
-            </intent-filter>
-        </service>
 
         <activity
             android:name=".ui.call.CallActivity"

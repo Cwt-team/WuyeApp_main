@@ -239,11 +239,16 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     
     @Override
     public void onIncomingCall(Call call, String caller) {
-        // 在通话中收到新来电
         runOnUiThread(() -> {
-            Toast.makeText(this, "收到新来电: " + caller, Toast.LENGTH_SHORT).show();
-            // 当前界面已经是通话界面，不需要打开新界面
-            // 可以考虑添加新的逻辑处理多个来电
+            // 1. 关闭当前通话界面（可选，或弹窗提示）
+            // finish();
+
+            // 2. 启动新的来电界面
+            Intent intent = new Intent(this, CallActivity.class);
+            intent.setAction("ANSWER_CALL");
+            intent.putExtra("caller", caller);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
         });
     }
     

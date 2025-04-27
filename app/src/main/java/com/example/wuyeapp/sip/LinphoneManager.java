@@ -18,6 +18,7 @@ import org.linphone.core.RegistrationState;
 import org.linphone.core.TransportType;
 import org.linphone.core.Config;
 import org.linphone.core.AudioDevice;
+import org.linphone.core.VideoActivationPolicy;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -66,8 +67,10 @@ public class LinphoneManager {
             configureNatAndNetwork();
             
             // 视频配置
-            core.getVideoActivationPolicy().setAutomaticallyInitiate(true);
-            core.getVideoActivationPolicy().setAutomaticallyAccept(true);
+            VideoActivationPolicy policy = core.getVideoActivationPolicy().clone();
+            policy.setAutomaticallyInitiate(true);
+            policy.setAutomaticallyAccept(true);
+            core.setVideoActivationPolicy(policy);
             
             // 配置核心参数
             configureCore();
