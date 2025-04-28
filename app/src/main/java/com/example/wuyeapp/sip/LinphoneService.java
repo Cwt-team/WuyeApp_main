@@ -655,4 +655,24 @@ public class LinphoneService extends Service {
         }
         return null;
     }
+
+    // 在LinphoneService.java中添加发送DTMF的方法
+    public void sendDtmf(char digit) {
+        try {
+            Core core = linphoneManager.getCore();
+            Call currentCall = core.getCurrentCall();
+            
+            if (currentCall != null) {
+                Log.i(TAG, "发送DTMF信号: " + digit);
+                currentCall.sendDtmf(digit);
+                
+                // 同时播放DTMF音 - 为用户提供听觉反馈
+                core.playDtmf(digit, 200);
+            } else {
+                Log.e(TAG, "无法发送DTMF，当前无通话");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "发送DTMF失败", e);
+        }
+    }
 } 

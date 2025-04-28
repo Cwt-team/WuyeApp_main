@@ -387,6 +387,10 @@ public class LinphoneManager {
                 // 其他优化设置
                 core.getConfig().setBool("misc", "real_early_media", true);
                 
+                // 确保DTMF信号通过RFC2833和SIP INFO两种方式都发送，最大兼容性
+                core.setUseRfc2833ForDtmf(true);
+                core.setUseInfoForDtmf(true);
+                
                 Log.d(TAG, "通过配置文件设置了额外的SIP和RTP参数");
             }
         } catch (Exception e) {

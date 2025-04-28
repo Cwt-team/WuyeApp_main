@@ -131,6 +131,26 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 Log.e(TAG, "linphoneService为空，无法操作扬声器");
             }
         });
+        
+        // 添加"*"开门按钮监听器
+        binding.btnOpenDoorStar.setOnClickListener(v -> {
+            if (linphoneService != null) {
+                linphoneService.sendDtmf('*');
+                Toast.makeText(this, "已发送*信号开门", Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e(TAG, "linphoneService为空，无法发送DTMF");
+            }
+        });
+        
+        // 添加"#"开门按钮监听器
+        binding.btnOpenDoorHash.setOnClickListener(v -> {
+            if (linphoneService != null) {
+                linphoneService.sendDtmf('#');
+                Toast.makeText(this, "已发送#信号开门", Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e(TAG, "linphoneService为空，无法发送DTMF");
+            }
+        });
     }
     
     private void processIntent(Intent intent) {

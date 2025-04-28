@@ -305,4 +305,13 @@ public class LinphoneSipManager {
             linphoneService.mergeCallsIntoConference();
         }
     }
+    
+    // 发送DTMF
+    public void sendDtmf(char digit) {
+        if (isBound && linphoneService != null) {
+            linphoneService.sendDtmf(digit);
+        } else {
+            Log.e(TAG, "SIP服务未连接，无法发送DTMF");
+        }
+    }
 } 

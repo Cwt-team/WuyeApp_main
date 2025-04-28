@@ -140,8 +140,24 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
         binding.btn7.setOnClickListener(v -> appendDialNumber("7"));
         binding.btn8.setOnClickListener(v -> appendDialNumber("8"));
         binding.btn9.setOnClickListener(v -> appendDialNumber("9"));
-        binding.btnStar.setOnClickListener(v -> appendDialNumber("*"));
-        binding.btnHash.setOnClickListener(v -> appendDialNumber("#"));
+        binding.btnStar.setOnClickListener(v -> {
+            // 检查是否在通话中，如果是则发送DTMF，否则添加到拨号号码
+            if (isInCall()) {
+                LinphoneSipManager.getInstance().sendDtmf('*');
+                Toast.makeText(this, "已发送*信号开门", Toast.LENGTH_SHORT).show();
+            } else {
+                appendDialNumber("*");
+            }
+        });
+        binding.btnHash.setOnClickListener(v -> {
+            // 检查是否在通话中，如果是则发送DTMF，否则添加到拨号号码
+            if (isInCall()) {
+                LinphoneSipManager.getInstance().sendDtmf('#');
+                Toast.makeText(this, "已发送#信号开门", Toast.LENGTH_SHORT).show();
+            } else {
+                appendDialNumber("#");
+            }
+        });
         
         // 长按0键输入+号
         binding.btn0.setOnLongClickListener(v -> {
@@ -312,5 +328,16 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
             Toast.makeText(this, "通话失败: " + reason, Toast.LENGTH_SHORT).show();
             Log.e(TAG, "通话失败: " + reason);
         });
+    }
+
+    // 判断是否在通话中
+    private boolean isInCall() {
+        if (linphoneService != null) {
+            Core core = linphoneService.getCore();
+            if (core != null) {
+                return core.getCallsNb() > 0;
+            }
+        }
+        return false;
     }
 } 
