@@ -171,7 +171,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                         if (isVideoCall) {
                             linphoneService.makeVideoCall(number);
                         } else {
-                            linphoneService.makeCall(number);
+                            linphoneService.makeCall(number, false);
                         }
                     } else {
                         Toast.makeText(this, "SIP服务未准备就绪，无法拨打", Toast.LENGTH_SHORT).show();

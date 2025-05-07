@@ -166,7 +166,7 @@ public class LinphoneSipManager {
     // 拨打电话
     public void makeCall(String number) {
         if (isBound && linphoneService != null) {
-            linphoneService.makeCall(number);
+            linphoneService.makeCall(number, false);
         } else {
             Log.e(TAG, "SIP服务未连接，无法拨打电话");
         }

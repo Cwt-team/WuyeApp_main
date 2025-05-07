@@ -242,22 +242,57 @@ public class LinphoneManager {
             org.linphone.core.PayloadType[] videoPayloads = core.getVideoPayloadTypes();
             for (org.linphone.core.PayloadType pt : videoPayloads) {
                 String mimeType = pt.getMimeType();
-                // 优先使用H264，禁用其他编解码器
-                boolean enable = "H264".equals(mimeType);
+                // 支持更多视频编解码器，而不仅仅是H264
+                boolean enable = "H264".equals(mimeType) || "VP8".equals(mimeType) || "AV1".equals(mimeType);
                 Log.d(TAG, "视频编解码器: " + mimeType + " - " + (enable ? "启用" : "禁用"));
                 pt.enable(enable);
+                
+                // H264编解码器参数优化
+                if ("H264".equals(mimeType)) {
+                    pt.setRecvFmtp("profile-level-id=42801F");
+                }
+                
+                // VP8编解码器参数设置
+                if ("VP8".equals(mimeType)) {
+                    pt.setRecvFmtp("max-fs=12288;max-fr=60");
+                }
             }
             
-            // 配置音频编解码器 - 只启用基本的编解码器提高兼容性
+            // 配置音频编解码器 - 启用更多的编解码器
             org.linphone.core.PayloadType[] audioPayloads = core.getAudioPayloadTypes();
             for (org.linphone.core.PayloadType pt : audioPayloads) {
                 String mimeType = pt.getMimeType();
-                // 仅启用PCMA和PCMU，禁用其他编解码器（包括opus）以提高兼容性
+                int clockRate = pt.getClockRate();
+                
+                // 启用多种音频编解码器，并保证PCMA和PCMU为首选
                 boolean enable = "PCMA".equalsIgnoreCase(mimeType) || 
-                               "PCMU".equalsIgnoreCase(mimeType);
-                Log.d(TAG, "音频编解码器: " + mimeType + " - " + (enable ? "启用" : "禁用"));
+                               "PCMU".equalsIgnoreCase(mimeType) ||
+                               "opus".equalsIgnoreCase(mimeType) ||
+                               "speex".equalsIgnoreCase(mimeType) ||
+                               "G722".equalsIgnoreCase(mimeType) ||
+                               "ILBC".equalsIgnoreCase(mimeType) ||
+                               "GSM".equalsIgnoreCase(mimeType);
+                
+                // 优先级设置：PCMA/PCMU > opus > 其他
+                if ("PCMA".equalsIgnoreCase(mimeType) || "PCMU".equalsIgnoreCase(mimeType)) {
+                    pt.setRecvFmtp("annexb=no");
+                    pt.enable(true);    // 最高优先级
+                } else if ("opus".equalsIgnoreCase(mimeType)) {
+                    pt.setRecvFmtp("useinbandfec=1;stereo=1");
+                    pt.enable(true);    // 次高优先级
+                } else if ("G722".equalsIgnoreCase(mimeType)) {
+                    pt.enable(true);    // 三级优先级
+                } else if (enable) {
+                    pt.enable(true);    // 其他启用的编解码器
+                } else {
+                    pt.enable(false);   // 禁用的编解码器
+                }
+                
+                Log.d(TAG, "音频编解码器: " + mimeType + "/" + clockRate + " - " + (enable ? "启用" : "禁用"));
                 pt.enable(enable);
             }
+            
+            Log.i(TAG, "音视频编解码器配置完成，已启用更多选项");
         } catch (Exception e) {
             Log.e(TAG, "配置编解码器失败", e);
         }
@@ -295,7 +330,13 @@ public class LinphoneManager {
             if (core != null) {
                 // NAT穿透设置
                 core.setNatAddress(null);  // 让系统自动处理
-                core.setStunServer(null);  // 不使用STUN服务器
+                
+                // 启用STUN和ICE
+                org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
+                natPolicy.setStunEnabled(true);
+                natPolicy.setIceEnabled(true);
+                natPolicy.setStunServer("stun:stun.l.google.com:19302");
+                core.setNatPolicy(natPolicy);
                 
                 // 网络相关设置
                 core.setNetworkReachable(true);
@@ -315,7 +356,7 @@ public class LinphoneManager {
         org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
         natPolicy.setStunEnabled(true);
         natPolicy.setIceEnabled(true); 
-        natPolicy.setStunServer("stun.linphone.org"); // 使用公共STUN服务器
+        natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 使用Google的STUN服务器
         return natPolicy;
     }
 
@@ -323,41 +364,30 @@ public class LinphoneManager {
     private void configureCore() {
         try {
             if (core != null) {
-                // SIP配置
-                core.getConfig().setBool("sip", "guess_hostname", true);
-                core.getConfig().setBool("sip", "register_only_when_network_is_up", true);
-                core.getConfig().setBool("sip", "auto_net_state_mon", true);
+                // 配置回声消除和噪声抑制 - 使用配置方式替代直接方法调用
+                core.getConfig().setBool("sound", "echocancellation", true);
+                core.getConfig().setBool("sound", "echo_limiter", true);
+                core.getConfig().setBool("sound", "noise_gate", true);
                 
-                // 使用更宽松的配置
-                core.getConfig().setBool("net", "firewall_policy", false);
+                // 允许自适应比特率控制，根据网络条件调整
+                core.getConfig().setBool("net", "adaptive_rate_control", true);
                 
-                // 修改用户代理以更好兼容
-                core.setUserAgent("Linphone-Android", "");
+                // 设置默认视频大小
+                core.setPreferredVideoDefinitionByName("720p"); // 设置为720p
                 
-                // 增加SIP超时设置，提高可靠性
-                core.getConfig().setInt("sip", "sip_tcp_transport_timeout", 15);
-                core.getConfig().setInt("sip", "register_timeout", 30);
-                core.getConfig().setInt("sip", "default_expires", 60);  // 降低超时值
+                // 设置视频预览启用
+                core.getConfig().setBool("video", "preview", false);
                 
-                // 允许在同一域中进行呼叫
-                core.getConfig().setBool("sip", "use_domain_in_route", true);
+                // 设置自动下载编解码器
+                core.setDownloadBandwidth(0); // 不限制下载带宽
+                core.setUploadBandwidth(0);   // 不限制上传带宽
                 
-                // DNS SRV配置
-                core.getConfig().setBool("net", "dns_srv_enabled", true);
-                
-                // 回声消除配置
-                core.setEchoCancellationEnabled(true);  
-                
-                // 自适应抖动补偿
-                core.setAdaptiveRateControlEnabled(true);  
-                
-                // 调整RTP参数
-                core.getConfig().setInt("rtp", "rtcp_xr_enabled", 1);
+                // 设置抖动缓冲区参数
                 core.getConfig().setInt("rtp", "audio_jitt_comp", 60); 
                 
                 // 日志记录
-                Log.i(TAG, "回声消除已启用: " + core.isEchoCancellationEnabled());
-                Log.i(TAG, "自适应比特率控制已启用: " + core.isAdaptiveRateControlEnabled());  
+                Log.i(TAG, "回声消除已配置: " + core.getConfig().getBool("sound", "echocancellation", false));
+                Log.i(TAG, "自适应比特率控制已配置: " + core.getConfig().getBool("net", "adaptive_rate_control", false));  
                 
                 // 更多细节配置 - 使用配置文件方式
                 core.getConfig().setBool("sip", "reuse_authorization", true);
@@ -368,33 +398,45 @@ public class LinphoneManager {
                 core.getConfig().setInt("rtp", "audio_rtp_port", 7078);
                 core.getConfig().setInt("rtp", "audio_rtp_port_max", 7178);
                 
-                // SIP账户相关设置 - 通过配置文件设置不兼容的API
-                core.getConfig().setBool("sip", "use_rport", true);
-                core.getConfig().setBool("sip", "session_timers_enabled", false);
-                core.getConfig().setBool("sip", "avpf_enabled", false);
+                // 通话相关设置
+                core.getConfig().setInt("sip", "guess_hostname", 1);
+                core.getConfig().setBool("sip", "register_only_when_network_is_up", true);
+                core.getConfig().setBool("net", "auto_net_state_mon", true);
                 
-                // 禁用IPv6和其他可能导致问题的功能
-                core.getConfig().setBool("sip", "ipv6_enabled", false);
-                core.getConfig().setBool("sip", "rtp_bundle", false);
+                // 音频配置
+                core.getConfig().setBool("sound", "echocancellation", true);
+                core.getConfig().setFloat("sound", "mic_gain_db", 0.0f);
+                core.getConfig().setFloat("sound", "playback_gain_db", 0.0f);
                 
-                // 禁用STUN和ICE，有时这些会导致问题
-                core.getConfig().setBool("net", "ice_enabled", false);
-                core.getConfig().setBool("net", "stun_enabled", false);
+                // 视频配置
+                core.getConfig().setString("video", "displaytype", "MSAndroidTextureDisplay");
+                core.getConfig().setBool("video", "auto_resize_preview_to_keep_ratio", true);
                 
-                // 禁用opus编解码器配置
-                core.getConfig().setBool("audio_codec", "opus/48000/2", false);
+                // 禁用opus编解码器配置 - 改为启用但微调参数
+                core.getConfig().setBool("audio_codec", "opus/48000/2", true);
+                core.getConfig().setString("audio_codec", "opus/48000/2", "useinbandfec=1;stereo=1");
                 
-                // 其他优化设置
-                core.getConfig().setBool("misc", "real_early_media", true);
+                // 为VP8和H264设置配置
+                core.getConfig().setBool("video_codec", "VP8", true);
+                core.getConfig().setString("video_codec", "VP8", "max-fs=12288;max-fr=60");
+                core.getConfig().setBool("video_codec", "H264", true);
+                core.getConfig().setString("video_codec", "H264", "profile-level-id=42801F");
+                
+                // 启用高质量视频处理
+                core.getConfig().setBool("video", "preview_vsize", true);
                 
                 // 确保DTMF信号通过RFC2833和SIP INFO两种方式都发送，最大兼容性
-                core.setUseRfc2833ForDtmf(true);
-                core.setUseInfoForDtmf(true);
+                core.getConfig().setInt("sip", "dtmf_with_info", 1);
+                core.getConfig().setInt("sip", "dtmf_with_sipinfo", 1);
                 
-                Log.d(TAG, "通过配置文件设置了额外的SIP和RTP参数");
+                // 配置视频自动接受政策
+                core.getConfig().setBool("video", "automatically_accept", true);
+                core.getConfig().setBool("video", "automatically_initiate", true);
+                
+                Log.i(TAG, "Core核心配置完成");
             }
         } catch (Exception e) {
-            Log.e(TAG, "配置Core参数失败", e);
+            Log.e(TAG, "配置Core失败", e);
         }
     }
 

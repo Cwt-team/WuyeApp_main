@@ -208,9 +208,10 @@ public class LinphoneService extends Service {
             
             // 设置NAT策略
             org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-            natPolicy.setStunEnabled(true); 
-            natPolicy.setIceEnabled(true);  
-            natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 使用Google的STUN服务器
+            natPolicy.setStunEnabled(true);
+            natPolicy.setIceEnabled(true);
+            natPolicy.setUpnpEnabled(false);
+            natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 修改为完整的STUN服务器URL
             accountParams.setNatPolicy(natPolicy);
             
             // 设置更合适的注册超时
@@ -249,15 +250,6 @@ public class LinphoneService extends Service {
         }
     }
     
-    // 创建NAT策略
-    private org.linphone.core.NatPolicy createNatPolicy(Core core) {
-        org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-        natPolicy.setStunEnabled(false);
-        natPolicy.setIceEnabled(false);
-        natPolicy.setUpnpEnabled(false);
-        return natPolicy;
-    }
-    
     // 注销SIP账户
     public void unregisterAccount() {
         try {
@@ -273,11 +265,6 @@ public class LinphoneService extends Service {
         }
     }
     
-    // 拨打电话
-    public void makeCall(String destination) {
-        makeCall(destination, false);
-    }
-    
     // 拨打电话（带视频选项）
     public void makeCall(String destination, boolean withVideo) {
         try {
@@ -289,10 +276,14 @@ public class LinphoneService extends Service {
                 return;
             }
             
-            // 优化FreeSwitch专用配置
-            core.getConfig().setBool("net", "ice_enabled", false); // 禁用ICE
+            // 配置网络参数，允许视频呼叫
+            if (withVideo) {
+                // 视频通话时确保视频功能启用
+                core.getConfig().setBool("video", "capture", true);
+                core.getConfig().setBool("video", "display", true);
+            }
             
-            // 配置编解码器 - FreeSwitch兼容性最好的顺序
+            // 配置编解码器 - 扩展了更多编解码器支持
             configureFreeswitchCompatibleCodecs(core);
             
             // 创建地址
@@ -302,11 +293,20 @@ public class LinphoneService extends Service {
             // 创建参数
             CallParams params = core.createCallParams(null);
             if (params != null) {
-                // FreeSwitch特别喜欢这些配置
-                params.setMediaEncryption(MediaEncryption.None);
-                params.setVideoEnabled(false);
+                // 设置通话参数
+                params.setMediaEncryption(MediaEncryption.SRTP); // 修改为SRTP加密
+                params.setVideoEnabled(withVideo); // 根据参数启用视频
                 params.setAudioDirection(MediaDirection.SendRecv);
-                params.setEarlyMediaSendingEnabled(false); // 改为false试试
+                params.setEarlyMediaSendingEnabled(false);
+                
+                // 如果是视频通话，配置视频参数
+                if (withVideo) {
+                    Log.i(TAG, "配置视频参数");
+                    params.setVideoDirection(MediaDirection.SendRecv);
+                    params.setLowBandwidthEnabled(false); // 视频通话时不用低带宽模式
+                } else {
+                    Log.i(TAG, "纯音频通话，不启用视频");
+                }
                 
                 // 自定义头，帮助服务器识别
                 params.addCustomHeader("X-FS-Support", "update_display,timer");
@@ -315,16 +315,17 @@ public class LinphoneService extends Service {
                 // 设置更合适的RTP超时值
                 core.getConfig().setInt("rtp", "timeout", 30);
                 
-                // 清除任何先前的NAT策略
-                org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-                natPolicy.setStunEnabled(false);
-                natPolicy.setIceEnabled(false);
-                
                 // 发起呼叫
                 Call call = core.inviteAddressWithParams(remoteAddress, params);
                 
                 if (call != null) {
-                    Log.i(TAG, "呼叫请求已发送");
+                    Log.i(TAG, "呼叫请求已发送" + (withVideo ? " (带视频)" : " (纯音频)"));
+                    
+                    // 如果是视频通话，设置视频输出
+                    if (withVideo) {
+                        // 确保视频通道已准备好
+                        core.getConfig().setBool("video", "automatically_accept", true);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -334,25 +335,82 @@ public class LinphoneService extends Service {
     
     // FreeSwitch优化的编解码器配置
     private void configureFreeswitchCompatibleCodecs(Core core) {
+        // 配置音频编解码器
         for (PayloadType pt : core.getAudioPayloadTypes()) {
             String mimeType = pt.getMimeType();
             int clockRate = pt.getClockRate();
             
-            // FreeSwitch最兼容的编解码器配置
+            // 扩展支持的音频编解码器，确保启用所有常用编解码器
             if (mimeType.equals("PCMA") && clockRate == 8000) {
                 pt.enable(true);
-                pt.setRecvFmtp("annexb=no");
                 Log.d(TAG, "优先启用PCMA编解码器");
             } 
             else if (mimeType.equals("PCMU") && clockRate == 8000) {
                 pt.enable(true);
                 Log.d(TAG, "启用PCMU编解码器");
             }
+            else if (mimeType.equalsIgnoreCase("opus")) {
+                pt.enable(true);
+                pt.setRecvFmtp("useinbandfec=1;stereo=1");
+                Log.d(TAG, "启用opus编解码器");
+            }
+            else if (mimeType.equalsIgnoreCase("speex")) {
+                pt.enable(true);
+                if (clockRate == 8000) {
+                    pt.setRecvFmtp("vbr=on");
+                } else if (clockRate == 16000) {
+                    pt.setRecvFmtp("vbr=on");
+                } else if (clockRate == 32000) {
+                    pt.setRecvFmtp("vbr=on");
+                }
+                Log.d(TAG, "启用speex编解码器(" + clockRate + ")");
+            }
+            else if (mimeType.equals("G722")) {
+                pt.enable(true);
+                Log.d(TAG, "启用G722编解码器");
+            }
+            else if (mimeType.equals("ILBC")) {
+                pt.enable(true);
+                pt.setRecvFmtp("mode=30");
+                Log.d(TAG, "启用ILBC编解码器");
+            }
+            else if (mimeType.equals("GSM")) {
+                pt.enable(true);
+                Log.d(TAG, "启用GSM编解码器");
+            }
             else {
-                // 禁用其他可能造成问题的编解码器
-                pt.enable(false);
+                // 其他编解码器也启用但低优先级
+                pt.enable(true);
+                Log.d(TAG, "保留其他音频编解码器: " + mimeType + "/" + clockRate);
             }
         }
+        
+        // 配置视频编解码器，确保所有可能用于通话的编解码器都已启用
+        for (PayloadType pt : core.getVideoPayloadTypes()) {
+            String mimeType = pt.getMimeType();
+            
+            if ("H264".equals(mimeType)) {
+                pt.enable(true);
+                pt.setRecvFmtp("profile-level-id=42801F;packetization-mode=1");
+                Log.d(TAG, "优先启用H264视频编解码器");
+            } 
+            else if ("VP8".equals(mimeType)) {
+                pt.enable(true);
+                pt.setRecvFmtp("max-fs=12288;max-fr=60");
+                Log.d(TAG, "启用VP8视频编解码器");
+            }
+            else if ("AV1".equals(mimeType)) {
+                pt.enable(true);
+                Log.d(TAG, "启用AV1视频编解码器");
+            }
+            else {
+                // 其他视频编解码器也启用但低优先级
+                pt.enable(true);
+                Log.d(TAG, "启用其他视频编解码器: " + mimeType);
+            }
+        }
+        
+        Log.d(TAG, "完成配置FreeSwitch兼容的编解码器");
     }
     
     // 接听来电
@@ -363,45 +421,79 @@ public class LinphoneService extends Service {
     // 接听来电（带视频选项）
     public void answerCall(boolean withVideo) {
         try {
-            Log.i(TAG, "====== 开始接听" + (withVideo ? "视频" : "语音") + "来电 ======");
+            Log.i(TAG, "====== 接听来电 ======");
             
             Core core = linphoneManager.getCore();
             if (core == null) {
-                Log.e(TAG, "Core为空，无法接听来电");
+                Log.e(TAG, "Core为空，无法接听电话");
                 return;
             }
             
             Call call = core.getCurrentCall();
             if (call == null) {
-                Log.e(TAG, "没有当前来电可接听");
-                if (core.getCallsNb() > 0) {
-                    Log.d(TAG, "尝试接听第一个通话");
-                    call = core.getCalls()[0];
-                } else {
-                    Log.e(TAG, "没有任何通话可接听");
-                    return;
-                }
-            }
-            
-            if (call.getState() != Call.State.IncomingReceived) {
-                Log.e(TAG, "通话状态不是来电状态, 当前状态: " + call.getState());
+                Log.e(TAG, "当前没有来电，无法接听");
                 return;
             }
             
-            Log.d(TAG, "准备接听来电，Call ID: " + call.getCallLog().getCallId());
+            // 创建通话参数
+            CallParams params = call.getRemoteParams();
             
-            CallParams params = core.createCallParams(call);
-            if (params == null) {
-                Log.e(TAG, "创建呼叫参数失败，尝试直接接听");
-                call.accept();
-            } else {
-                params.setVideoEnabled(withVideo);
+            // 如果支持视频且需要启用视频
+            if (params != null && withVideo) {
+                params = core.createCallParams(call);
+                params.setVideoEnabled(true);
+                params.setMediaEncryption(MediaEncryption.SRTP); // 添加SRTP加密支持
+                
+                // 确保视频功能已开启
+                core.getConfig().setBool("video", "capture", true);
+                core.getConfig().setBool("video", "display", true);
+                
+                // 接听电话
                 call.acceptWithParams(params);
+                Log.i(TAG, "已接听视频通话");
+            } else {
+                // 创建普通语音通话参数
+                params = core.createCallParams(call);
+                if (params != null) {
+                    params.setVideoEnabled(false);
+                    params.setMediaEncryption(MediaEncryption.SRTP); // 添加SRTP加密支持
+                    call.acceptWithParams(params);
+                } else {
+                    // 如果无法创建参数，使用默认设置接听
+                    call.accept();
+                }
+                Log.i(TAG, "已接听语音通话");
             }
-            
-            Log.i(TAG, "已接听来电");
         } catch (Exception e) {
-            Log.e(TAG, "接听来电异常", e);
+            Log.e(TAG, "接听电话失败", e);
+        }
+    }
+    
+    // 路由音频到扬声器
+    private void routeAudioToSpeaker() {
+        Core core = linphoneManager.getCore();
+        if (core != null) {
+            for (AudioDevice device : core.getAudioDevices()) {
+                if (device.getType() == AudioDevice.Type.Speaker) {
+                    core.setOutputAudioDevice(device);
+                    Log.i(TAG, "已将音频路由到扬声器");
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 路由音频到听筒
+    private void routeAudioToEarpiece() {
+        Core core = linphoneManager.getCore();
+        if (core != null) {
+            for (AudioDevice device : core.getAudioDevices()) {
+                if (device.getType() == AudioDevice.Type.Earpiece) {
+                    core.setOutputAudioDevice(device);
+                    Log.i(TAG, "已将音频路由到听筒");
+                    break;
+                }
+            }
         }
     }
     
@@ -483,9 +575,33 @@ public class LinphoneService extends Service {
         }
     }
 
-    // 拨打视频电话
+    // 专门用于视频通话的方法
     public void makeVideoCall(String destination) {
-        makeCall(destination, true);
+        try {
+            Log.i(TAG, "====== 开始拨打视频电话到: " + destination + " ======");
+            
+            Core core = linphoneManager.getCore();
+            if (core == null) {
+                Log.e(TAG, "Core为空，无法拨打视频电话");
+                return;
+            }
+            
+            // 启用视频功能
+            core.getConfig().setBool("video", "capture", true);
+            core.getConfig().setBool("video", "display", true);
+            
+            // 配置视频自动激活政策
+            core.getConfig().setBool("video", "automatically_initiate", true);
+            core.getConfig().setBool("video", "automatically_accept", true);
+            
+            Log.i(TAG, "视频功能已启用，自动接受/发起设置已配置");
+            
+            // 使用带视频参数拨打电话
+            makeCall(destination, true);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "拨打视频电话异常", e);
+        }
     }
 
     // 切换摄像头
@@ -531,20 +647,43 @@ public class LinphoneService extends Service {
         }
     }
 
-    // 设置视频预览和显示
+    // 设置视频显示表面
     public void setVideoSurfaces(Object localVideoSurface, Object remoteVideoSurface) {
         try {
+            Log.i(TAG, "设置视频显示表面");
             Core core = linphoneManager.getCore();
-            
-            // 设置预览窗口（本地摄像头）
-            core.setNativePreviewWindowId(localVideoSurface);
-            
-            // 设置视频窗口（远程视频）
-            core.setNativeVideoWindowId(remoteVideoSurface);
-            
-            Log.i(TAG, "视频窗口已配置");
+            if (core != null) {
+                // 设置视频预览和远程视频窗口
+                core.setNativePreviewWindowId(localVideoSurface);
+                core.setNativeVideoWindowId(remoteVideoSurface);
+                
+                // 确保视频功能已启用
+                core.getConfig().setBool("video", "capture", true);
+                core.getConfig().setBool("video", "display", true);
+                
+                // 检查当前通话
+                Call currentCall = core.getCurrentCall();
+                if (currentCall != null) {
+                    boolean hasVideo = currentCall.getCurrentParams().isVideoEnabled();
+                    Log.i(TAG, "当前通话" + (hasVideo ? "已启用" : "未启用") + "视频");
+                    
+                    // 如果通话中但没有视频，尝试添加视频
+                    if (currentCall.getState() == Call.State.StreamsRunning && !hasVideo) {
+                        Log.i(TAG, "尝试向现有通话添加视频");
+                        CallParams params = core.createCallParams(currentCall);
+                        if (params != null) {
+                            params.setVideoEnabled(true);
+                            currentCall.update(params);
+                        }
+                    }
+                } else {
+                    Log.i(TAG, "没有活动通话，视频窗口将在通话开始时显示");
+                }
+                
+                Log.i(TAG, "视频显示表面设置完成");
+            }
         } catch (Exception e) {
-            Log.e(TAG, "设置视频窗口失败", e);
+            Log.e(TAG, "设置视频表面异常", e);
         }
     }
 
@@ -674,5 +813,15 @@ public class LinphoneService extends Service {
         } catch (Exception e) {
             Log.e(TAG, "发送DTMF失败", e);
         }
+    }
+
+    // 创建NAT策略
+    private org.linphone.core.NatPolicy createNatPolicy(Core core) {
+        org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
+        natPolicy.setStunEnabled(true);
+        natPolicy.setIceEnabled(true);
+        natPolicy.setUpnpEnabled(false);
+        natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 修改为完整的STUN服务器URL
+        return natPolicy;
     }
 } 
