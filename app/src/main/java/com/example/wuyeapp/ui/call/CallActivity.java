@@ -1,17 +1,26 @@
 package com.example.wuyeapp.ui.call;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.PackageManagerCompat;
 
 import com.example.wuyeapp.databinding.ActivityCallBinding;
 import com.example.wuyeapp.sip.LinphoneSipManager;
@@ -19,7 +28,10 @@ import com.example.wuyeapp.sip.LinphoneService;
 import com.example.wuyeapp.sip.LinphoneCallback;
 
 import org.linphone.core.Call;
+import org.linphone.core.CallParams;
 import org.linphone.core.Core;
+import org.linphone.core.MediaDirection;
+import org.linphone.core.AudioDevice;
 
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -96,13 +108,16 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 binding.tvCallerId.setText(caller);
             }
         }
+        
+        // 确认麦克风权限并检查状态
+        checkMicrophoneStatus();
     }
     
     private void setupButtonListeners() {
         // 挂断按钮
         binding.btnHangup.setOnClickListener(v -> {
             if (linphoneService != null) {
-                linphoneService.hangupCall();
+                linphoneService.hangUp();
                 Toast.makeText(this, "已挂断", Toast.LENGTH_SHORT).show();
             } else {
                 Log.e(TAG, "linphoneService为空，无法挂断");
@@ -166,6 +181,9 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                     if (linphoneService != null) {
                         Log.d(TAG, "开始拨打: " + number);
                         
+                        // 确保音频设备已初始化
+                        ensureAudioDevicesReady();
+                        
                         // 判断是否是视频通话
                         isVideoCall = intent.getBooleanExtra("isVideo", false);
                         if (isVideoCall) {
@@ -186,16 +204,70 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(intent.getStringExtra("caller"));
                 
+                // 确保音频设备已初始化
+                ensureAudioDevicesReady();
+                
                 // 由于可能有系统来电界面，这里可能需要延迟接听
                 new Handler().postDelayed(() -> {
                     if (linphoneService != null) {
                         Log.d(TAG, "接听来电");
-                        linphoneService.answerCall();
+                        linphoneService.answerCall(isVideoCall);
                     } else {
                         Log.e(TAG, "linphoneService为空，无法接听");
                     }
                 }, 500);
             }
+        }
+    }
+    
+    // 确保音频设备已准备好
+    private void ensureAudioDevicesReady() {
+        if (linphoneService == null || linphoneService.getCore() == null) {
+            Log.e(TAG, "无法初始化音频设备，Core为空");
+            return;
+        }
+        
+        // 初始化音频设备 - 通过LinphoneManager
+        try {
+            Core core = linphoneService.getCore();
+            
+            // 确保麦克风已启用
+            core.setMicEnabled(true);
+            
+            // 借助LinphoneManager进行音频初始化
+            if (core.getInputAudioDevice() == null) {
+                Log.w(TAG, "输入音频设备未设置，尝试初始化...");
+                
+                // 优先使用LinphoneManager的音频初始化方法
+                try {
+                    // 通过反射获取LinphoneManager实例并调用initAudioDevices
+                    java.lang.reflect.Method getInstance = Class.forName("com.example.wuyeapp.sip.LinphoneManager")
+                        .getMethod("getInstance", Context.class);
+                    Object manager = getInstance.invoke(null, this);
+                    
+                    java.lang.reflect.Method initAudio = manager.getClass().getMethod("initAudioDevices");
+                    initAudio.invoke(manager);
+                    
+                    Log.i(TAG, "通过LinphoneManager初始化音频设备成功");
+                } catch (Exception e) {
+                    Log.e(TAG, "通过反射调用初始化失败，回退到本地方法", e);
+                    // 如果失败，使用本地方法
+                    initializeLinphoneAudio(core);
+                }
+            } else {
+                Log.i(TAG, "音频设备已设置，当前输入设备: " + core.getInputAudioDevice().getDeviceName());
+            }
+            
+            // 设置音频编解码器
+            for (org.linphone.core.PayloadType pt : core.getAudioPayloadTypes()) {
+                if ("PCMA".equalsIgnoreCase(pt.getMimeType()) || 
+                    "PCMU".equalsIgnoreCase(pt.getMimeType())) {
+                    pt.enable(true);
+                    Log.i(TAG, "已确保 " + pt.getMimeType() + " 编解码器已启用");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "确保音频设备准备就绪时出错", e);
         }
     }
     
@@ -301,5 +373,136 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             Toast.makeText(CallActivity.this, "通话失败: " + reason, Toast.LENGTH_SHORT).show();
             finish();
         });
+    }
+    
+    // 确认麦克风权限并检查状态
+    private void checkMicrophoneStatus() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // 如无权限，立即请求
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    100);
+            return;
+        }
+        
+        // 尝试打开麦克风以验证其可用性
+        try {
+            int sampleRate = 44100;
+            int minBufferSize = AudioRecord.getMinBufferSize(sampleRate,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+                    
+            if (minBufferSize == AudioRecord.ERROR || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
+                Log.e(TAG, "麦克风不可用：缓冲区大小无效");
+                Toast.makeText(this, "麦克风初始化失败", Toast.LENGTH_SHORT).show();
+                showAudioDeviceErrorDialog();
+                return;
+            }
+            
+            AudioRecord recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                    sampleRate, AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, minBufferSize * 2);
+                    
+            if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "麦克风不可用：无法初始化");
+                showAudioDeviceErrorDialog();
+                recorder.release();
+                return;
+            }
+            
+            // 测试录音是否有效
+            recorder.startRecording();
+            short[] buffer = new short[minBufferSize];
+            int read = recorder.read(buffer, 0, minBufferSize);
+            recorder.stop();
+            recorder.release();
+            
+            if (read <= 0) {
+                Log.e(TAG, "麦克风不可用：无法读取数据");
+                showAudioDeviceErrorDialog();
+                return;
+            }
+            
+            Log.i(TAG, "麦克风状态检查：正常，可读取数据");
+            
+            // 确保Linphone的音频设备已初始化
+            if (linphoneService != null) {
+                Core core = linphoneService.getCore();
+                if (core != null) {
+                    // 初始化音频设备
+                    initializeLinphoneAudio(core);
+                    Log.i(TAG, "Linphone音频设备已初始化");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "麦克风检查失败", e);
+            showAudioDeviceErrorDialog();
+        }
+    }
+    
+    // 显示音频设备错误对话框
+    private void showAudioDeviceErrorDialog() {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        builder.setTitle("音频设备错误")
+               .setMessage("麦克风不可用或被占用。请确保已授予麦克风权限，并且没有其他应用正在使用麦克风。")
+               .setPositiveButton("去设置", (dialog, which) -> {
+                   // 跳转到应用设置页面
+                   Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                   Uri uri = Uri.fromParts("package", getPackageName(), null);
+                   intent.setData(uri);
+                   startActivity(intent);
+               })
+               .setNegativeButton("取消", (dialog, which) -> {
+                   finish(); // 结束活动
+               })
+               .setCancelable(false)
+               .show();
+    }
+    
+    // 初始化Linphone音频设备
+    private void initializeLinphoneAudio(Core core) {
+        if (core != null) {
+            // 检查并设置音频设备
+            AudioDevice[] devices = core.getAudioDevices();
+            boolean hasMic = false;
+            boolean hasSpeaker = false;
+            
+            for (AudioDevice device : devices) {
+                Log.i(TAG, "检测到音频设备: " + device.getDeviceName() + ", 类型: " + device.getType());
+                
+                if (device.getType() == AudioDevice.Type.Microphone) {
+                    core.setInputAudioDevice(device);
+                    hasMic = true;
+                    Log.i(TAG, "已设置麦克风: " + device.getDeviceName());
+                }
+                
+                if (device.getType() == AudioDevice.Type.Speaker) {
+                    // 备用扬声器
+                    hasSpeaker = true;
+                }
+            }
+            
+            // 确保麦克风已启用
+            core.setMicEnabled(true);
+            
+            if (!hasMic) {
+                Log.e(TAG, "未找到可用麦克风设备");
+                Toast.makeText(this, "未找到可用麦克风", Toast.LENGTH_LONG).show();
+            }
+            
+            if (!hasSpeaker) {
+                Log.e(TAG, "未找到可用扬声器设备");
+            }
+            
+            // 确保音频编解码器已启用
+            for (org.linphone.core.PayloadType pt : core.getAudioPayloadTypes()) {
+                if ("PCMU".equalsIgnoreCase(pt.getMimeType()) || 
+                    "PCMA".equalsIgnoreCase(pt.getMimeType())) {
+                    pt.enable(true);
+                    Log.i(TAG, "已启用 " + pt.getMimeType() + " 编解码器");
+                }
+            }
+        }
     }
 }

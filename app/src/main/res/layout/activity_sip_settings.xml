@@ -67,7 +67,7 @@
         android:layout_height="wrap_content"
         android:hint="端口 (可选)"
         app:startIconDrawable="@drawable/ic_port"
-        android:layout_marginBottom="24dp">
+        android:layout_marginBottom="16dp">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/et_port"
@@ -78,29 +78,58 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <Button
-        android:id="@+id/btn_save"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="保存设置"
-        android:padding="12dp"
-        android:layout_marginTop="16dp"/>
+        android:hint="STUN服务器地址"
+        app:startIconDrawable="@drawable/ic_server"
+        android:layout_marginBottom="24dp">
 
-    <Button
-        android:id="@+id/btn_test"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_stun_server"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:text="stun:116.198.199.38:3478"/>
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="测试连接"
-        android:padding="12dp"
-        android:layout_marginTop="8dp"/>
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="保存"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btn_test"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="测试连接"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tv_test_result"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:gravity="center"
         android:textSize="16sp"
-        android:visibility="gone" />
+        android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/btn_check_config"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="检查SIP配置(诊断Not Acceptable Here)"
+        android:layout_marginTop="24dp"/>
 
 </LinearLayout>

@@ -30,6 +30,7 @@ public class SipSettingsActivity extends AppCompatActivity {
     private static final String KEY_PASSWORD = "password";
     private static final String KEY_DOMAIN = "domain";
     private static final String KEY_PORT = "port";
+    private static final String KEY_STUN_SERVER = "stun_server";
     private Handler timeoutHandler = new Handler();
     private Runnable timeoutRunnable = new Runnable() {
         @Override
@@ -57,16 +58,21 @@ public class SipSettingsActivity extends AppCompatActivity {
         
         // 测试按钮点击事件
         binding.btnTest.setOnClickListener(v -> {
-            Log.i(TAG, "点击了测试连接按钮");
             testConnection();
+        });
+        
+        // 检查SIP配置按钮点击事件
+        binding.btnCheckConfig.setOnClickListener(v -> {
+            checkSipConfiguration();
         });
     }
 
     private void loadSettings() {
         binding.etUsername.setText(preferences.getString(KEY_USERNAME, ""));
         binding.etPassword.setText(preferences.getString(KEY_PASSWORD, ""));
-        binding.etDomain.setText(preferences.getString(KEY_DOMAIN, "8.138.26.199"));
+        binding.etDomain.setText(preferences.getString(KEY_DOMAIN, "116.198.199.38"));
         binding.etPort.setText(preferences.getString(KEY_PORT, "5060"));
+        binding.etStunServer.setText(preferences.getString(KEY_STUN_SERVER, "stun:116.198.199.38:3478"));
     }
 
     private void saveSettings(boolean finish) {
@@ -74,6 +80,7 @@ public class SipSettingsActivity extends AppCompatActivity {
         String password = binding.etPassword.getText().toString().trim();
         String domain = binding.etDomain.getText().toString().trim();
         String port = binding.etPort.getText().toString().trim();
+        String stunServer = binding.etStunServer.getText().toString().trim();
 
         if (username.isEmpty() || password.isEmpty() || domain.isEmpty()) {
             Toast.makeText(this, "用户名、密码和服务器地址不能为空", Toast.LENGTH_SHORT).show();
@@ -86,6 +93,12 @@ public class SipSettingsActivity extends AppCompatActivity {
         editor.putString(KEY_PASSWORD, password);
         editor.putString(KEY_DOMAIN, domain);
         editor.putString(KEY_PORT, port);
+        editor.putString(KEY_STUN_SERVER, stunServer);
+        
+        // 保存到应用设置中，让其他组件可以访问
+        SharedPreferences appSettings = getSharedPreferences("AppSettings", MODE_PRIVATE);
+        appSettings.edit().putString("stun_server", stunServer).apply();
+        
         editor.apply();
 
         Toast.makeText(this, "SIP设置已保存", Toast.LENGTH_SHORT).show();
@@ -93,6 +106,28 @@ public class SipSettingsActivity extends AppCompatActivity {
         if (finish) {
             finish();
         }
+    }
+    
+    /**
+     * 检查SIP配置状态
+     * 用于诊断"Not Acceptable Here"问题
+     */
+    private void checkSipConfiguration() {
+        Log.i(TAG, "开始检查SIP配置...");
+        
+        // 显示状态
+        binding.tvTestResult.setText("正在检查SIP配置...");
+        binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.black));
+        binding.tvTestResult.setVisibility(View.VISIBLE);
+        
+        // 调用LinphoneSipManager的checkSipConfig方法
+        LinphoneSipManager.getInstance().checkSipConfig();
+        
+        // 提示用户查看日志
+        new Handler().postDelayed(() -> {
+            binding.tvTestResult.setText("SIP配置检查完成，请查看控制台日志以获取详细信息");
+            Toast.makeText(this, "检查完成，请查看日志输出", Toast.LENGTH_SHORT).show();
+        }, 1000);
     }
     
     private void testConnection() {
@@ -124,11 +159,12 @@ public class SipSettingsActivity extends AppCompatActivity {
         binding.tvTestResult.setTextColor(getResources().getColor(android.R.color.black));
         binding.tvTestResult.setVisibility(View.VISIBLE);
         
-        // 获取SIP账户信息
+        // 获取SIP账户信息 - 确保使用SIP服务器地址，而非STUN服务器地址
         String username = binding.etUsername.getText().toString().trim();
         String password = binding.etPassword.getText().toString().trim();
-        String domain = binding.etDomain.getText().toString().trim();
-        String port = binding.etPort.getText().toString().trim();
+        String domain = binding.etDomain.getText().toString().trim(); // SIP服务器地址
+        String port = binding.etPort.getText().toString().trim();     // SIP服务器端口
+        String stunServer = binding.etStunServer.getText().toString().trim(); // STUN服务器地址（不用于SIP注册）
         
         // 验证输入
         if (username.isEmpty() || password.isEmpty() || domain.isEmpty()) {
@@ -141,6 +177,9 @@ public class SipSettingsActivity extends AppCompatActivity {
         if (!port.equals("5060")) {
             domain = domain + ":" + port;
         }
+        
+        Log.i(TAG, "SIP服务器: " + domain);
+        Log.i(TAG, "STUN服务器: " + stunServer);
         
         // 设置超时处理
         timeoutHandler = new Handler();

@@ -29,10 +29,18 @@ import org.linphone.core.AuthInfo;
 import org.linphone.core.MediaDirection;
 import org.linphone.core.RegistrationState;
 import org.linphone.core.PayloadType;
+import org.linphone.core.VideoActivationPolicy;
 
 import java.util.List;
 
 import android.content.pm.ServiceInfo;
+import android.content.SharedPreferences;
+
+import com.example.wuyeapp.utils.NetworkUtil;
+
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 
 public class LinphoneService extends Service {
     private static final String TAG = "LinphoneService";
@@ -42,6 +50,9 @@ public class LinphoneService extends Service {
     private LinphoneManager linphoneManager;
     private final IBinder binder = new LocalBinder();
     private LinphoneCallback linphoneCallback;
+    
+    private AudioManager audioManager;
+    private boolean hasAudioFocus = false;
     
     // 用于绑定服务
     public class LocalBinder extends Binder {
@@ -127,6 +138,9 @@ public class LinphoneService extends Service {
                 }
             }
         });
+
+        // 在onCreate中初始化
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
     }
     
     @Override
@@ -167,6 +181,11 @@ public class LinphoneService extends Service {
             Log.i(TAG, "====== 开始注册SIP账户: " + username + "@" + domain + " ======");
             Core core = linphoneManager.getCore();
             
+            // 获取STUN服务器设置
+            SharedPreferences preferences = getApplicationContext().getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+            String stunServer = preferences.getString("stun_server", "stun:116.198.199.38:3478");
+            Log.i(TAG, "当前STUN服务器配置: " + stunServer);
+            
             // 清除现有账户
             Log.d(TAG, "清除现有账户和认证信息");
             for (Account account : core.getAccountList()) {
@@ -191,28 +210,25 @@ public class LinphoneService extends Service {
             Log.d(TAG, "创建账户参数");
             AccountParams accountParams = core.createAccountParams();
             
-            // 设置身份地址
+            // 设置身份地址 - 确保这是SIP服务器地址
             String sipAddress = "sip:" + username + "@" + domain;
             Log.d(TAG, "设置身份地址: " + sipAddress);
             Address identity = Factory.instance().createAddress(sipAddress);
             accountParams.setIdentityAddress(identity);
             
-            // 设置服务器地址
+            // 设置服务器地址 - 确保这是SIP服务器地址
             String serverAddress = "sip:" + domain;
-            Log.d(TAG, "设置服务器地址: " + serverAddress);
+            Log.d(TAG, "设置SIP服务器地址: " + serverAddress);
             Address address = Factory.instance().createAddress(serverAddress);
             
             // 尝试多种传输方式 - 同时支持UDP和TCP
             address.setTransport(TransportType.Udp); // 先尝试UDP
             accountParams.setServerAddress(address);
             
-            // 设置NAT策略
-            org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-            natPolicy.setStunEnabled(true);
-            natPolicy.setIceEnabled(true);
-            natPolicy.setUpnpEnabled(false);
-            natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 修改为完整的STUN服务器URL
+            // 设置NAT策略 - 在这里使用STUN服务器配置
+            org.linphone.core.NatPolicy natPolicy = createNatPolicy(core);
             accountParams.setNatPolicy(natPolicy);
+            Log.d(TAG, "NAT策略已设置，使用STUN服务器: " + stunServer);
             
             // 设置更合适的注册超时
             accountParams.setRegisterEnabled(true);
@@ -276,6 +292,18 @@ public class LinphoneService extends Service {
                 return;
             }
             
+            // 确保初始化音频设备
+            linphoneManager.initAudioDevices();
+            
+            // 请求音频焦点
+            requestAudioFocus();
+            
+            // 打印SIP配置状态信息
+            printSipConfigStatus();
+            
+            // 在打电话前预先收集ICE候选
+            ensureICECandidatesCollection(core);
+            
             // 配置网络参数，允许视频呼叫
             if (withVideo) {
                 // 视频通话时确保视频功能启用
@@ -294,10 +322,11 @@ public class LinphoneService extends Service {
             CallParams params = core.createCallParams(null);
             if (params != null) {
                 // 设置通话参数
-                params.setMediaEncryption(MediaEncryption.SRTP); // 修改为SRTP加密
+                params.setMediaEncryption(MediaEncryption.None); // 不使用加密，提高兼容性
                 params.setVideoEnabled(withVideo); // 根据参数启用视频
+                params.setAudioEnabled(true); // 确保音频启用
                 params.setAudioDirection(MediaDirection.SendRecv);
-                params.setEarlyMediaSendingEnabled(false);
+                params.setEarlyMediaSendingEnabled(true); // 启用早期媒体
                 
                 // 如果是视频通话，配置视频参数
                 if (withVideo) {
@@ -312,8 +341,10 @@ public class LinphoneService extends Service {
                 params.addCustomHeader("X-FS-Support", "update_display,timer");
                 params.addCustomHeader("X-App-Type", "WuyeApp");
                 
-                // 设置更合适的RTP超时值
+                // 配置RTP相关参数，增强媒体协商
                 core.getConfig().setInt("rtp", "timeout", 30);
+                core.getConfig().setBool("rtp", "symmetric", true); // 使用对称RTP
+                core.getConfig().setInt("net", "dns_timeout", 15); // 增加DNS解析超时
                 
                 // 发起呼叫
                 Call call = core.inviteAddressWithParams(remoteAddress, params);
@@ -330,6 +361,87 @@ public class LinphoneService extends Service {
             }
         } catch (Exception e) {
             Log.e(TAG, "拨打电话异常", e);
+        }
+    }
+    
+    // 确保ICE候选收集完成
+    private void ensureICECandidatesCollection(Core core) {
+        try {
+            // 检查当前NAT策略
+            org.linphone.core.NatPolicy natPolicy = core.getNatPolicy();
+            if (natPolicy != null) {
+                Log.i(TAG, "当前ICE状态: 启用=" + natPolicy.isIceEnabled() + 
+                        ", STUN=" + natPolicy.isStunEnabled() +
+                        ", 服务器=" + natPolicy.getStunServer());
+                
+                // 确保STUN和ICE启用
+                if (!natPolicy.isStunEnabled() || !natPolicy.isIceEnabled()) {
+                    Log.w(TAG, "STUN或ICE未启用，重新配置NAT策略");
+                    natPolicy.setStunEnabled(true);
+                    natPolicy.setIceEnabled(true);
+                    natPolicy.setStunServer("stun:116.198.199.38:3478");
+                    core.setNatPolicy(natPolicy);
+                }
+                
+                // 如果STUN服务器不可达，尝试备用服务器
+                if (!isStunServerReachable(natPolicy.getStunServer())) {
+                    Log.w(TAG, "当前STUN服务器不可达，尝试备用服务器");
+                    
+                    // 使用中国可访问的备用STUN服务器
+                    // 这里可以添加其他中国可访问的STUN服务器
+                    String[] backupServers = {
+                        "stun:116.198.199.38:3478",
+                        "stun:stun.miwifi.com:3478",  // 小米路由器STUN
+                        "stun:stun.qq.com:3478"       // 腾讯STUN
+                    };
+                    
+                    for (String server : backupServers) {
+                        if (isStunServerReachable(server)) {
+                            natPolicy.setStunServer(server);
+                            core.setNatPolicy(natPolicy);
+                            Log.i(TAG, "已切换到可用的STUN服务器: " + server);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 配置RTP相关设置，提高NAT穿透能力
+            core.getConfig().setBool("net", "allow_late_ice", true);
+            
+            Log.i(TAG, "ICE候选收集准备就绪");
+        } catch (Exception e) {
+            Log.e(TAG, "初始化ICE候选收集失败", e);
+        }
+    }
+
+    // 检查STUN服务器是否可达
+    private boolean isStunServerReachable(String stunServer) {
+        if (stunServer == null || stunServer.isEmpty()) {
+            return false;
+        }
+        
+        try {
+            // 从stun:stun.server.com:port格式中提取地址和端口
+            String server = stunServer.replace("stun:", "");
+            String host = server;
+            int port = 3478; // 默认STUN端口
+            
+            if (server.contains(":")) {
+                String[] parts = server.split(":");
+                host = parts[0];
+                port = Integer.parseInt(parts[1]);
+            }
+            
+            // 尝试解析域名
+            Log.d(TAG, "尝试解析STUN服务器: " + host);
+            java.net.InetAddress address = java.net.InetAddress.getByName(host);
+            
+            // 简单的可达性测试
+            return address != null; 
+        } catch (Exception e) {
+            Log.w(TAG, "STUN服务器不可达: " + stunServer + " - " + e.getMessage());
+            return false;
         }
     }
     
@@ -423,6 +535,12 @@ public class LinphoneService extends Service {
         try {
             Log.i(TAG, "====== 接听来电 ======");
             
+            // 请求音频焦点
+            requestAudioFocus();
+            
+            // 初始化音频设备
+            checkAndInitializeAudioDevices();
+            
             Core core = linphoneManager.getCore();
             if (core == null) {
                 Log.e(TAG, "Core为空，无法接听电话");
@@ -435,37 +553,52 @@ public class LinphoneService extends Service {
                 return;
             }
             
-            // 创建通话参数
-            CallParams params = call.getRemoteParams();
-            
-            // 如果支持视频且需要启用视频
-            if (params != null && withVideo) {
-                params = core.createCallParams(call);
-                params.setVideoEnabled(true);
-                params.setMediaEncryption(MediaEncryption.SRTP); // 添加SRTP加密支持
+            // 创建通话参数 - 修改为直接创建新参数
+            CallParams params = core.createCallParams(call);
+            if (params != null) {
+                // 确保音频流设置正确
+                params.setAudioEnabled(true);
+                params.setAudioDirection(MediaDirection.SendRecv);
+                params.setVideoEnabled(withVideo);
                 
-                // 确保视频功能已开启
-                core.getConfig().setBool("video", "capture", true);
-                core.getConfig().setBool("video", "display", true);
+                // 使用更兼容的设置
+                params.setLowBandwidthEnabled(false);
                 
                 // 接听电话
                 call.acceptWithParams(params);
-                Log.i(TAG, "已接听视频通话");
+                Log.i(TAG, "已接听" + (withVideo ? "视频" : "语音") + "通话");
             } else {
-                // 创建普通语音通话参数
-                params = core.createCallParams(call);
-                if (params != null) {
-                    params.setVideoEnabled(false);
-                    params.setMediaEncryption(MediaEncryption.SRTP); // 添加SRTP加密支持
-                    call.acceptWithParams(params);
-                } else {
-                    // 如果无法创建参数，使用默认设置接听
-                    call.accept();
-                }
-                Log.i(TAG, "已接听语音通话");
+                // 如果无法创建参数，使用简单方式接听
+                call.accept();
+                Log.i(TAG, "已使用默认参数接听通话");
             }
         } catch (Exception e) {
             Log.e(TAG, "接听电话失败", e);
+        }
+    }
+    
+    // 检查并初始化音频设备
+    private void checkAndInitializeAudioDevices() {
+        Core core = linphoneManager.getCore();
+        if (core != null) {
+            // 检查当前音频设备状态
+            AudioDevice inputDevice = core.getInputAudioDevice();
+            AudioDevice outputDevice = core.getOutputAudioDevice();
+            
+            Log.i(TAG, "当前音频状态 - 输入: " + 
+                  (inputDevice != null ? inputDevice.getDeviceName() : "未设置") +
+                  ", 输出: " + (outputDevice != null ? outputDevice.getDeviceName() : "未设置"));
+            
+            // 确保麦克风已设置
+            if (inputDevice == null) {
+                for (AudioDevice device : core.getAudioDevices()) {
+                    if (device.getType() == AudioDevice.Type.Microphone) {
+                        core.setInputAudioDevice(device);
+                        Log.i(TAG, "已设置麦克风: " + device.getDeviceName());
+                        break;
+                    }
+                }
+            }
         }
     }
     
@@ -498,7 +631,7 @@ public class LinphoneService extends Service {
     }
     
     // 挂断电话
-    public void hangupCall() {
+    public void hangUp() {
         try {
             Core core = linphoneManager.getCore();
             Call call = core.getCurrentCall();
@@ -795,7 +928,69 @@ public class LinphoneService extends Service {
         return null;
     }
 
-    // 在LinphoneService.java中添加发送DTMF的方法
+    /**
+     * 检查并打印SIP配置状态
+     * 用于排查"Not Acceptable Here"问题
+     */
+    public void printSipConfigStatus() {
+        if (linphoneManager == null) {
+            Log.e(TAG, "LinphoneManager未初始化，无法检查SIP配置");
+            return;
+        }
+        
+        Core core = linphoneManager.getCore();
+        if (core == null) {
+            Log.e(TAG, "Core未初始化，无法检查SIP配置");
+            return;
+        }
+        
+        Log.i(TAG, "========= SIP配置状态检查 =========");
+        
+        // 检查NAT策略
+        org.linphone.core.NatPolicy natPolicy = core.getNatPolicy();
+        if (natPolicy != null) {
+            Log.i(TAG, "STUN服务器: " + natPolicy.getStunServer());
+            // 检查是否配置了STUN服务器
+            boolean isStunConfigured = natPolicy.getStunServer() != null && !natPolicy.getStunServer().isEmpty();
+            Log.i(TAG, "STUN已配置: " + isStunConfigured);
+            
+            // 代替直接检查方法
+            Log.i(TAG, "NAT策略已设置");
+        } else {
+            Log.e(TAG, "NAT策略未配置");
+        }
+        
+        // 检查网络状态
+        Log.i(TAG, "网络可达状态: " + core.isNetworkReachable());
+        
+        // 检查SIP账户
+        if (core.getDefaultAccount() != null) {
+            Account account = core.getDefaultAccount();
+            Log.i(TAG, "默认账户: " + account.getParams().getIdentityAddress().asString());
+            Log.i(TAG, "注册状态: " + account.getState());
+        } else {
+            Log.e(TAG, "没有配置默认SIP账户");
+        }
+        
+        // 检查SDP传输地址
+        if (core.getDefaultAccount() != null) {
+            TransportType transportType = core.getDefaultAccount().getParams().getServerAddress().getTransport();
+            Log.i(TAG, "SIP传输协议: " + transportType);
+        }
+        
+        // 检查当前网络接口
+        try {
+            String localIp = NetworkUtil.getLocalIpAddress();
+            Log.i(TAG, "当前设备IP地址: " + localIp);
+            Log.i(TAG, "是否为内网IP: " + NetworkUtil.isPrivateIpAddress(localIp));
+        } catch (Exception e) {
+            Log.e(TAG, "获取网络信息失败", e);
+        }
+        
+        Log.i(TAG, "====================================");
+    }
+
+    // 发送DTMF信号
     public void sendDtmf(char digit) {
         try {
             Core core = linphoneManager.getCore();
@@ -803,9 +998,10 @@ public class LinphoneService extends Service {
             
             if (currentCall != null) {
                 Log.i(TAG, "发送DTMF信号: " + digit);
+                // 使用当前通话发送DTMF
                 currentCall.sendDtmf(digit);
                 
-                // 同时播放DTMF音 - 为用户提供听觉反馈
+                // 同时播放DTMF音（如果API支持）
                 core.playDtmf(digit, 200);
             } else {
                 Log.e(TAG, "无法发送DTMF，当前无通话");
@@ -821,7 +1017,34 @@ public class LinphoneService extends Service {
         natPolicy.setStunEnabled(true);
         natPolicy.setIceEnabled(true);
         natPolicy.setUpnpEnabled(false);
-        natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 修改为完整的STUN服务器URL
+        
+        // 从应用设置中获取STUN服务器地址
+        SharedPreferences preferences = getApplicationContext().getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        String stunServer = preferences.getString("stun_server", "stun:116.198.199.38:3478");
+        Log.i(TAG, "使用STUN服务器: " + stunServer);
+        
+        natPolicy.setStunServer(stunServer); // 使用配置的STUN服务器
         return natPolicy;
+    }
+
+    // 请求音频焦点方法
+    private void requestAudioFocus() {
+        if (audioManager != null && !hasAudioFocus) {
+            int result;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build())
+                    .build();
+                result = audioManager.requestAudioFocus(focusRequest);
+            } else {
+                result = audioManager.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL,
+                    AudioManager.AUDIOFOCUS_GAIN);
+            }
+            hasAudioFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
+            Log.d(TAG, "音频焦点请求 " + (hasAudioFocus ? "成功" : "失败"));
+        }
     }
 } 

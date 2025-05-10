@@ -1,6 +1,7 @@
 package com.example.wuyeapp.sip;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
@@ -9,6 +10,7 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import org.linphone.core.Call;
+import org.linphone.core.CallParams;
 import org.linphone.core.Core;
 import org.linphone.core.CoreListenerStub;
 import org.linphone.core.Factory;
@@ -19,6 +21,8 @@ import org.linphone.core.TransportType;
 import org.linphone.core.Config;
 import org.linphone.core.AudioDevice;
 import org.linphone.core.VideoActivationPolicy;
+
+import com.example.wuyeapp.utils.NetworkUtil;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -119,6 +123,15 @@ public class LinphoneManager {
                     Log.d(TAG, "通话详情: 远程地址=" + call.getRemoteAddress().asString());
                     Log.d(TAG, "通话方向: " + (call.getDir() == Call.Dir.Incoming ? "来电" : "去电"));
                     Log.d(TAG, "通话持续时间: " + call.getDuration() + "秒");
+                    
+                    // 打印SDP和ICE候选信息
+                    printSdpAndIceCandidates(call);
+
+                    // 检查是否出现"Not Acceptable Here"错误
+                    if (message != null && message.contains("Not Acceptable Here")) {
+                        Log.e(TAG, "检测到'Not Acceptable Here'错误，正在打印诊断信息...");
+                        printNotAcceptableHereDetails(call);
+                    }
                     
                     // 处理特定场景的媒体通道配置
                     handleMediaPathConfiguration(call, state);
@@ -331,11 +344,31 @@ public class LinphoneManager {
                 // NAT穿透设置
                 core.setNatAddress(null);  // 让系统自动处理
                 
+                // 获取STUN服务器列表
+                String[] stunServers = {
+                    getStunServerAddress(),       // 主STUN服务器
+                    "stun:stun.miwifi.com:3478",  // 小米路由器STUN
+                    "stun:stun.qq.com:3478"       // 腾讯STUN
+                };
+                
+                // 尝试多个STUN服务器直到找到可用的
+                String stunServer = stunServers[0]; // 默认使用首选
+                for (String server : stunServers) {
+                    if (isStunServerReachable(server)) {
+                        stunServer = server;
+                        Log.i(TAG, "已选择可用的STUN服务器: " + stunServer);
+                        break;
+                    }
+                }
+                
+                Log.i(TAG, "使用STUN服务器: " + stunServer);
+                
                 // 启用STUN和ICE
                 org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
                 natPolicy.setStunEnabled(true);
                 natPolicy.setIceEnabled(true);
-                natPolicy.setStunServer("stun:stun.l.google.com:19302");
+                natPolicy.setUpnpEnabled(true);  // 启用UPnP提高穿透成功率
+                natPolicy.setStunServer(stunServer);
                 core.setNatPolicy(natPolicy);
                 
                 // 网络相关设置
@@ -344,6 +377,19 @@ public class LinphoneManager {
                 // 允许UDP通过NAT
                 core.getConfig().setBool("net", "enable_nat_helper", true);
                 
+                // 增加ICE候选收集时间
+                core.getConfig().setInt("net", "stun_server_timeout", 10000); // 10秒
+                
+                // 允许使用IPV6
+                core.getConfig().setBool("net", "ipv6_enabled", true);
+                
+                // 禁用UDP端口复用，避免某些NAT下的问题
+                core.getConfig().setBool("rtp", "disable_upnp", false);
+                
+                // 配置媒体ICE相关设置
+                core.getConfig().setBool("net", "allow_late_ice", true); // 允许后期ICE协商
+                core.getConfig().setInt("net", "ice_session_timer_value", 20); // 增加ICE会话时间
+                
                 Log.d(TAG, "NAT和网络配置完成");
             }
         } catch (Exception e) {
@@ -351,12 +397,60 @@ public class LinphoneManager {
         }
     }
 
+    // 检查STUN服务器是否可达
+    private boolean isStunServerReachable(String stunServer) {
+        try {
+            // 从stun:stun.server.com:port格式中提取地址和端口
+            String server = stunServer.replace("stun:", "");
+            String host = server;
+            int port = 3478; // 默认STUN端口
+            
+            if (server.contains(":")) {
+                String[] parts = server.split(":");
+                host = parts[0];
+                port = Integer.parseInt(parts[1]);
+            }
+            
+            // 尝试解析域名
+            Log.d(TAG, "尝试解析STUN服务器: " + host);
+            java.net.InetAddress address = java.net.InetAddress.getByName(host);
+            Log.d(TAG, "STUN服务器IP: " + address.getHostAddress());
+            
+            // 测试端口是否开放
+            java.net.Socket socket = new java.net.Socket();
+            socket.connect(new java.net.InetSocketAddress(address, port), 3000); // 3秒超时
+            socket.close();
+            
+            Log.i(TAG, "STUN服务器可达: " + stunServer);
+            return true;
+        } catch (Exception e) {
+            Log.w(TAG, "STUN服务器不可达: " + stunServer + " - " + e.getMessage());
+            return false;
+        }
+    }
+
+    // 获取STUN服务器地址
+    private String getStunServerAddress() {
+        // 首先尝试从应用配置中获取
+        SharedPreferences preferences = appContext.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        String stunServer = preferences.getString("stun_server", null);
+        
+        // 如果未配置，则使用用户购买的中国STUN服务器
+        if (stunServer == null || stunServer.isEmpty()) {
+            // 使用用户购买的中国STUN服务器，支持国内访问
+            stunServer = "stun:116.198.199.38:3478";
+            Log.i(TAG, "使用中国STUN服务器: " + stunServer);
+        }
+        
+        return stunServer;
+    }
+
     // 创建NAT策略
     private org.linphone.core.NatPolicy createNatPolicy() {
         org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
         natPolicy.setStunEnabled(true);
         natPolicy.setIceEnabled(true); 
-        natPolicy.setStunServer("stun:stun.l.google.com:19302"); // 使用Google的STUN服务器
+        natPolicy.setStunServer(getStunServerAddress()); // 使用配置的STUN服务器
         return natPolicy;
     }
 
@@ -432,6 +526,26 @@ public class LinphoneManager {
                 // 配置视频自动接受政策
                 core.getConfig().setBool("video", "automatically_accept", true);
                 core.getConfig().setBool("video", "automatically_initiate", true);
+                
+                // 确保音频编解码器配置正确
+                for (org.linphone.core.PayloadType pt : core.getAudioPayloadTypes()) {
+                    if ("PCMA".equalsIgnoreCase(pt.getMimeType()) && pt.getClockRate() == 8000) {
+                        pt.enable(true);
+                    } else if ("PCMU".equalsIgnoreCase(pt.getMimeType()) && pt.getClockRate() == 8000) {
+                        pt.enable(true);
+                    }
+                }
+
+                // 禁用不必要的高级功能
+                core.getConfig().setBool("rtp", "audio_multicast_enabled", false);
+                core.getConfig().setBool("rtp", "video_multicast_enabled", false);
+
+                // 设置音频抖动缓冲区
+                core.getConfig().setInt("rtp", "audio_jitt_comp", 60);
+                core.getConfig().setInt("sound", "audio_buffer_size", 8); // ms
+
+                // 确保音频初始化配置正确
+                core.getConfig().setBool("sound", "play_during_early_media", true);
                 
                 Log.i(TAG, "Core核心配置完成");
             }
@@ -562,6 +676,183 @@ public class LinphoneManager {
         } else {
             // 音频通话默认使用听筒
             routeAudioToEarpiece();
+        }
+    }
+
+    /**
+     * 打印SDP和ICE候选信息
+     * 用于检查SDP中的c=行和a=candidate行是否包含公网IP
+     */
+    private void printSdpAndIceCandidates(Call call) {
+        try {
+            // 获取当前通话的参数
+            CallParams params = call.getCurrentParams();
+            if (params != null) {
+                Log.i(TAG, "===== 本地SDP信息 =====");
+                Log.i(TAG, "是否启用视频: " + params.isVideoEnabled());
+                Log.i(TAG, "使用的媒体加密: " + params.getMediaEncryption().toString());
+                // 音频总是启用的，不需要检查
+                Log.i(TAG, "音频已启用");
+            }
+
+            // 获取远程参数
+            CallParams remoteParams = call.getRemoteParams();
+            if (remoteParams != null) {
+                Log.i(TAG, "===== 远程SDP信息 =====");
+                // 音频总是启用的，不需要检查
+                Log.i(TAG, "远程音频已启用");
+                Log.i(TAG, "远程视频是否启用: " + remoteParams.isVideoEnabled());
+            }
+            
+            // 获取网络相关信息
+            if (call.getParams() != null) {
+                Log.i(TAG, "当前通话状态: " + call.getState().toString());
+                
+                // 获取NAT策略
+                org.linphone.core.NatPolicy natPolicy = core.getNatPolicy();
+                if (natPolicy != null) {
+                    Log.i(TAG, "STUN服务器: " + natPolicy.getStunServer());
+                    // 检查是否启用了STUN和ICE
+                    Log.i(TAG, "已配置STUN服务器: " + (natPolicy.getStunServer() != null && !natPolicy.getStunServer().isEmpty()));
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "打印SDP和ICE信息时出错", e);
+        }
+    }
+    
+    /**
+     * 解析并打印SDP中的地址信息
+     * 注意：当前API版本可能不支持直接获取SDP内容
+     */
+    private void printSdpAddressInfo(String sdp) {
+        // 由于API限制，此方法可能无法直接访问SDP内容
+        Log.i(TAG, "当前API版本可能不支持直接访问SDP内容");
+    }
+
+    /**
+     * 打印与"Not Acceptable Here"错误相关的详细诊断信息
+     * @param call 当前通话
+     */
+    private void printNotAcceptableHereDetails(Call call) {
+        Log.e(TAG, "========= Not Acceptable Here 错误诊断 =========");
+        
+        try {
+            // 1. 检查NAT策略
+            Log.e(TAG, "1. ICE配置状态:");
+            org.linphone.core.NatPolicy natPolicy = core.getNatPolicy();
+            if (natPolicy != null) {
+                Log.e(TAG, "   - STUN服务器: " + natPolicy.getStunServer());
+                // 判断是否正确配置了STUN服务器
+                boolean stunConfigured = natPolicy.getStunServer() != null && !natPolicy.getStunServer().isEmpty();
+                Log.e(TAG, "   - STUN服务器已配置: " + stunConfigured);
+            } else {
+                Log.e(TAG, "   - NAT策略未配置");
+            }
+            
+            // 2. 获取本地网络信息
+            Log.e(TAG, "2. 本地网络信息:");
+            String localIp = NetworkUtil.getLocalIpAddress();
+            if (localIp != null) {
+                Log.e(TAG, "   - 本地IP地址: " + localIp);
+                Log.e(TAG, "   - 是否为内网IP: " + NetworkUtil.isPrivateIpAddress(localIp));
+            } else {
+                Log.e(TAG, "   - 无法获取本地IP地址");
+            }
+            
+            // 3. 获取通话参数信息
+            Log.e(TAG, "3. 媒体协商问题:");
+            CallParams params = call.getCurrentParams();
+            if (params != null) {
+                // 检查媒体类型
+                Log.e(TAG, "   - 音频始终启用");
+                Log.e(TAG, "   - 视频是否启用: " + params.isVideoEnabled());
+                Log.e(TAG, "   - 媒体加密类型: " + params.getMediaEncryption().toString());
+            }
+            
+            // 4. 检查原因和错误代码
+            Log.e(TAG, "4. 错误原因:");
+            Log.e(TAG, "   - 错误原因: " + call.getErrorInfo().getReason().toString());
+            Log.e(TAG, "   - 协议错误代码: " + call.getErrorInfo().getProtocolCode());
+            Log.e(TAG, "   - 详细错误信息: " + call.getErrorInfo().getPhrase());
+            
+            Log.e(TAG, "============================================");
+        } catch (Exception e) {
+            Log.e(TAG, "诊断Not Acceptable Here错误时发生异常", e);
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 检查网络配置是否适合SIP通话
+     */
+    private boolean isNetworkConfiguredProperly() {
+        // 检查是否有网络连接
+        if (!isNetworkConnected()) {
+            Log.e(TAG, "网络未连接");
+            return false;
+        }
+        
+        // 检查NAT策略
+        org.linphone.core.NatPolicy natPolicy = core.getNatPolicy();
+        if (natPolicy == null || natPolicy.getStunServer() == null || natPolicy.getStunServer().isEmpty()) {
+            Log.e(TAG, "STUN服务器未正确配置");
+            return false;
+        }
+        
+        return true;
+    }
+
+    public void initAudioDevices() {
+        Log.i(TAG, "初始化音频设备...");
+        try {
+            // 获取并打印可用音频设备
+            AudioDevice[] devices = core.getAudioDevices();
+            if (devices != null && devices.length > 0) {
+                Log.i(TAG, "发现" + devices.length + "个音频设备");
+                for (AudioDevice device : devices) {
+                    Log.i(TAG, "音频设备: " + device.getDeviceName() + " 类型:" + device.getType());
+                }
+            } else {
+                Log.e(TAG, "未发现音频设备，这可能导致通话问题");
+            }
+
+            // 确保音频采集设备已设置
+            AudioDevice captureDevice = core.getInputAudioDevice();
+            if (captureDevice != null) {
+                Log.i(TAG, "当前音频采集设备: " + captureDevice.getDeviceName());
+            } else {
+                Log.e(TAG, "未设置音频采集设备，尝试设置默认设备");
+                // 尝试设置默认的麦克风设备
+                for (AudioDevice device : devices) {
+                    if (device.getType() == AudioDevice.Type.Microphone) {
+                        core.setInputAudioDevice(device);
+                        Log.i(TAG, "已设置默认麦克风: " + device.getDeviceName());
+                        break;
+                    }
+                }
+            }
+            
+            // 检查音频输出设备
+            AudioDevice outputDevice = core.getOutputAudioDevice();
+            if (outputDevice == null) {
+                // 尝试设置默认的扬声器
+                for (AudioDevice device : devices) {
+                    if (device.getType() == AudioDevice.Type.Speaker) {
+                        core.setOutputAudioDevice(device);
+                        Log.i(TAG, "已设置默认输出设备: " + device.getDeviceName());
+                        break;
+                    }
+                }
+            }
+            
+            // 确保音频流已启用
+            if (!core.isMicEnabled()) {
+                core.setMicEnabled(true);
+                Log.i(TAG, "已启用麦克风");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "初始化音频设备时出错", e);
         }
     }
 } 

@@ -83,12 +83,21 @@ public class LinphoneSipManager {
             String password = preferences.getString("password", "");
             String domain = preferences.getString("domain", "");
             String port = preferences.getString("port", "5060");
+            String stunServer = preferences.getString("stun_server", "stun:116.198.199.38:3478");
+            
+            // 保存STUN服务器设置到全局配置
+            SharedPreferences appSettings = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+            appSettings.edit().putString("stun_server", stunServer).apply();
+            Log.i(TAG, "已保存STUN服务器设置: " + stunServer);
             
             if (!username.isEmpty() && !password.isEmpty() && !domain.isEmpty()) {
                 // 如果端口不是默认的5060，则添加到域名后
                 if (!port.equals("5060")) {
                     domain = domain + ":" + port;
                 }
+                
+                Log.i(TAG, "准备注册SIP账户: " + username + "@" + domain);
+                Log.i(TAG, "使用STUN服务器: " + stunServer);
                 
                 // 注册SIP账户
                 linphoneService.registerAccount(username, password, domain);
@@ -180,9 +189,11 @@ public class LinphoneSipManager {
     }
     
     // 挂断电话
-    public void hangupCall() {
+    public void hangUp() {
         if (isBound && linphoneService != null) {
-            linphoneService.hangupCall();
+            linphoneService.hangUp();
+        } else {
+            Log.e(TAG, "服务未连接，无法挂断电话");
         }
     }
     
@@ -228,7 +239,7 @@ public class LinphoneSipManager {
         @Override
         public void hangup() {
             if (isBound && linphoneService != null) {
-                linphoneService.hangupCall();
+                linphoneService.hangUp();
             }
         }
     }
@@ -312,6 +323,28 @@ public class LinphoneSipManager {
             linphoneService.sendDtmf(digit);
         } else {
             Log.e(TAG, "SIP服务未连接，无法发送DTMF");
+        }
+    }
+    
+    /**
+     * 检查并打印SIP配置状态
+     * 用于排查"Not Acceptable Here"问题
+     */
+    public void checkSipConfig() {
+        if (isBound && linphoneService != null) {
+            Log.i(TAG, "检查SIP配置状态...");
+            linphoneService.printSipConfigStatus();
+        } else {
+            Log.e(TAG, "服务未连接，无法检查SIP配置");
+        }
+    }
+
+    /**
+     * 静音/取消静音
+     */
+    public void toggleMute() {
+        if (isBound && linphoneService != null) {
+            linphoneService.toggleMute(false);
         }
     }
 } 
