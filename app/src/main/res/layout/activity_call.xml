@@ -5,7 +5,29 @@
     android:layout_height="match_parent"
     android:background="#2C2C2C">
 
+    <!-- 远程视频显示区域 -->
+    <FrameLayout
+        android:id="@+id/remote_video_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+        
+        <TextureView
+            android:id="@+id/remote_video_surface"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+            
+        <!-- 本地视频预览小窗口 -->
+        <TextureView
+            android:id="@+id/local_video_surface"
+            android:layout_width="120dp"
+            android:layout_height="160dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="16dp"/>
+    </FrameLayout>
+
     <LinearLayout
+        android:id="@+id/audio_call_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -43,6 +65,50 @@
             android:gravity="center"
             android:layout_marginBottom="48dp"/>
 
+        <!-- 接听和拒接按钮区域（来电时显示） -->
+        <LinearLayout
+            android:id="@+id/incoming_call_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="32dp"
+            android:visibility="gone">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_reject"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_call_end"
+                app:fabCustomSize="72dp"
+                app:maxImageSize="36dp"
+                app:backgroundTint="#E53935"
+                app:tint="#FFFFFF"
+                android:layout_margin="24dp"/>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_answer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_call"
+                app:fabCustomSize="72dp"
+                app:maxImageSize="36dp"
+                app:backgroundTint="#4CAF50"
+                app:tint="#FFFFFF"
+                android:layout_margin="24dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 通话中功能按钮和开门按钮整体包裹，便于统一控制显示 -->
+    <LinearLayout
+        android:id="@+id/call_controls_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_alignParentBottom="true"
+        android:paddingBottom="24dp"
+        android:visibility="gone">
+
         <!-- 开门按钮区域 -->
         <LinearLayout
             android:id="@+id/door_control_buttons"
@@ -50,7 +116,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:layout_marginBottom="64dp">
+            android:layout_marginBottom="16dp">
 
             <Button
                 android:id="@+id/btn_open_door_star"
@@ -70,43 +136,61 @@
                 android:backgroundTint="#2196F3"
                 android:layout_marginHorizontal="8dp" />
         </LinearLayout>
-    </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_alignParentBottom="true"
-        android:padding="24dp"
-        android:gravity="center">
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btn_mute"
-            android:layout_width="wrap_content"
+        <!-- 底部功能按钮区 -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_mic_off"
-            app:backgroundTint="#444444"
-            app:tint="#FFFFFF"
-            android:layout_margin="16dp"/>
+            android:orientation="horizontal"
+            android:gravity="center">
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btn_hangup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_call_end"
-            app:fabCustomSize="72dp"
-            app:maxImageSize="36dp"
-            app:backgroundTint="#E53935"
-            app:tint="#FFFFFF"
-            android:layout_margin="16dp"/>
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_mute"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_mic_off"
+                app:backgroundTint="#444444"
+                app:tint="#FFFFFF"
+                android:layout_margin="16dp"/>
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btn_speaker"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_volume_up"
-            app:backgroundTint="#444444"
-            app:tint="#FFFFFF"
-            android:layout_margin="16dp"/>
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_hangup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_call_end"
+                app:fabCustomSize="72dp"
+                app:maxImageSize="36dp"
+                app:backgroundTint="#E53935"
+                app:tint="#FFFFFF"
+                android:layout_margin="16dp"/>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_speaker"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_volume_up"
+                app:backgroundTint="#444444"
+                app:tint="#FFFFFF"
+                android:layout_margin="16dp"/>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_video"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_monitor"
+                app:backgroundTint="#444444"
+                app:tint="#FFFFFF"
+                android:layout_margin="16dp"/>
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_switch_camera"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_refresh"
+                app:backgroundTint="#444444"
+                app:tint="#FFFFFF"
+                android:layout_margin="16dp"
+                android:visibility="gone"/>
+        </LinearLayout>
     </LinearLayout>
 </RelativeLayout>

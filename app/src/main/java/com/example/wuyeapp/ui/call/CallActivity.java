@@ -15,6 +15,8 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.TextureView;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -22,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.PackageManagerCompat;
 
+import com.example.wuyeapp.R;
 import com.example.wuyeapp.databinding.ActivityCallBinding;
 import com.example.wuyeapp.sip.LinphoneSipManager;
 import com.example.wuyeapp.sip.LinphoneService;
@@ -46,6 +49,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     private boolean isMuted = false;
     private boolean isSpeakerOn = false;
     private boolean isVideoCall = false;
+    private boolean isVideoEnabled = false;
     
     private long callStartTime = 0;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
@@ -102,15 +106,37 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 String number = getIntent().getStringExtra("number");
                 binding.tvCallState.setText("正在拨打...");
                 binding.tvCallerId.setText(number);
+                
+                // 是否为视频通话
+                isVideoCall = getIntent().getBooleanExtra("isVideo", false);
+                
+                // 如果是视频通话，预先显示视频区域
+                if (isVideoCall) {
+                    showVideoLayout(true);
+                } else {
+                    showVideoLayout(false);
+                }
+                
+                // 只显示挂断按钮
+                showOnlyHangupButton();
             } else if ("ANSWER_CALL".equals(action)) {
                 String caller = getIntent().getStringExtra("caller");
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(caller);
+                
+                // 来电时显示接听/拒接按钮，隐藏开门按钮
+                showOnlyAnswerRejectButtons();
+                
+                // 默认先隐藏视频布局
+                showVideoLayout(false);
             }
         }
         
         // 确认麦克风权限并检查状态
         checkMicrophoneStatus();
+        
+        // 检查相机权限
+        checkCameraPermission();
     }
     
     private void setupButtonListeners() {
@@ -125,11 +151,36 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             finish();
         });
         
+        // 接听按钮
+        binding.btnAnswer.setOnClickListener(v -> {
+            if (linphoneService != null) {
+                linphoneService.answerCall(isVideoCall);
+                Toast.makeText(this, "已接听", Toast.LENGTH_SHORT).show();
+                // 接听后隐藏接听/拒接按钮，显示开门按钮
+                showCallControls();
+            } else {
+                Log.e(TAG, "linphoneService为空，无法接听");
+            }
+        });
+        
+        // 拒接按钮
+        binding.btnReject.setOnClickListener(v -> {
+            if (linphoneService != null) {
+                linphoneService.hangUp();
+                Toast.makeText(this, "已拒绝", Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e(TAG, "linphoneService为空，无法拒绝");
+            }
+            finish();
+        });
+        
         // 麦克风静音按钮
         binding.btnMute.setOnClickListener(v -> {
             isMuted = !isMuted;
             if (linphoneService != null) {
                 linphoneService.toggleMute(isMuted);
+                // 更新麦克风图标
+                binding.btnMute.setImageResource(isMuted ? R.drawable.ic_mic_off : R.drawable.ic_mic_on);
                 Toast.makeText(this, isMuted ? "麦克风已静音" : "麦克风已取消静音", Toast.LENGTH_SHORT).show();
             } else {
                 Log.e(TAG, "linphoneService为空，无法操作麦克风");
@@ -141,9 +192,55 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             isSpeakerOn = !isSpeakerOn;
             if (linphoneService != null) {
                 linphoneService.toggleSpeaker(isSpeakerOn);
+                // 更新扬声器图标
+                binding.btnSpeaker.setImageResource(isSpeakerOn ? R.drawable.ic_volume_up : R.drawable.ic_volume_off);
                 Toast.makeText(this, isSpeakerOn ? "扬声器已开启" : "扬声器已关闭", Toast.LENGTH_SHORT).show();
             } else {
                 Log.e(TAG, "linphoneService为空，无法操作扬声器");
+            }
+        });
+        
+        // 视频按钮
+        binding.btnVideo.setOnClickListener(v -> {
+            isVideoEnabled = !isVideoEnabled;
+            if (linphoneService != null) {
+                // 获取当前通话
+                Call currentCall = linphoneService.getCore().getCurrentCall();
+                if (currentCall != null) {
+                    // 获取通话参数，启用或禁用视频
+                    CallParams params = linphoneService.getCore().createCallParams(currentCall);
+                    params.setVideoEnabled(isVideoEnabled);
+                    currentCall.update(params);
+                    
+                    Toast.makeText(this, isVideoEnabled ? "视频已开启" : "视频已关闭", Toast.LENGTH_SHORT).show();
+                    
+                    // 根据视频状态显示或隐藏视频布局
+                    showVideoLayout(isVideoEnabled);
+                    
+                    // 如果启用视频，设置相应的视频显示区域
+                    if (isVideoEnabled) {
+                        setupVideoSurfaces();
+                        // 显示摄像头切换按钮
+                        binding.btnSwitchCamera.setVisibility(View.VISIBLE);
+                    } else {
+                        // 隐藏摄像头切换按钮
+                        binding.btnSwitchCamera.setVisibility(View.GONE);
+                    }
+                } else {
+                    Toast.makeText(this, "当前没有活动通话", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Log.e(TAG, "linphoneService为空，无法切换视频");
+            }
+        });
+        
+        // 摄像头切换按钮
+        binding.btnSwitchCamera.setOnClickListener(v -> {
+            if (linphoneService != null && isVideoEnabled) {
+                linphoneService.switchCamera();
+                Toast.makeText(this, "已切换摄像头", Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e(TAG, "linphoneService为空或视频未启用，无法切换摄像头");
             }
         });
         
@@ -178,6 +275,9 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                     binding.tvCallState.setText("正在拨打...");
                     binding.tvCallerId.setText(number);
                     
+                    // 只显示挂断按钮
+                    showOnlyHangupButton();
+                    
                     if (linphoneService != null) {
                         Log.d(TAG, "开始拨打: " + number);
                         
@@ -187,9 +287,18 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                         // 判断是否是视频通话
                         isVideoCall = intent.getBooleanExtra("isVideo", false);
                         if (isVideoCall) {
+                            // 启用视频通话
                             linphoneService.makeVideoCall(number);
+                            isVideoEnabled = true;
+                            showVideoLayout(true);
+                            setupVideoSurfaces();
+                            // 显示摄像头切换按钮
+                            binding.btnSwitchCamera.setVisibility(View.VISIBLE);
                         } else {
                             linphoneService.makeCall(number, false);
+                            showVideoLayout(false);
+                            // 隐藏摄像头切换按钮
+                            binding.btnSwitchCamera.setVisibility(View.GONE);
                         }
                     } else {
                         Toast.makeText(this, "SIP服务未准备就绪，无法拨打", Toast.LENGTH_SHORT).show();
@@ -204,19 +313,53 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(intent.getStringExtra("caller"));
                 
+                // 只显示接听/拒接按钮
+                showOnlyAnswerRejectButtons();
+                
                 // 确保音频设备已初始化
                 ensureAudioDevicesReady();
                 
-                // 由于可能有系统来电界面，这里可能需要延迟接听
-                new Handler().postDelayed(() -> {
-                    if (linphoneService != null) {
-                        Log.d(TAG, "接听来电");
-                        linphoneService.answerCall(isVideoCall);
-                    } else {
-                        Log.e(TAG, "linphoneService为空，无法接听");
-                    }
-                }, 500);
+                // 不再自动接听，而是等待用户点击接听按钮
             }
+        }
+    }
+    
+    // 显示或隐藏视频布局
+    private void showVideoLayout(boolean show) {
+        if (show) {
+            binding.remoteVideoLayout.setVisibility(View.VISIBLE);
+            binding.audioCallLayout.setVisibility(View.GONE);
+        } else {
+            binding.remoteVideoLayout.setVisibility(View.GONE);
+            binding.audioCallLayout.setVisibility(View.VISIBLE);
+        }
+    }
+    
+    // 设置视频显示区域
+    private void setupVideoSurfaces() {
+        try {
+            if (linphoneService != null) {
+                TextureView localVideoView = binding.localVideoSurface;
+                TextureView remoteVideoView = binding.remoteVideoSurface;
+                
+                // 将TextureView传递给LinphoneService进行视频显示
+                linphoneService.setVideoSurfaces(localVideoView, remoteVideoView);
+                
+                Log.d(TAG, "视频表面已设置");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "设置视频表面失败", e);
+        }
+    }
+    
+    // 检查相机权限
+    private void checkCameraPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // 如无权限，立即请求
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA},
+                    101);
         }
     }
     
@@ -332,13 +475,16 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     @Override
     public void onIncomingCall(Call call, String caller) {
         runOnUiThread(() -> {
-            // 1. 关闭当前通话界面（可选，或弹窗提示）
-            // finish();
-
-            // 2. 启动新的来电界面
+            // 检查是否为视频通话
+            if (call != null && call.getRemoteParams() != null) {
+                isVideoCall = call.getRemoteParams().isVideoEnabled();
+            }
+            
+            // 启动新的来电界面
             Intent intent = new Intent(this, CallActivity.class);
             intent.setAction("ANSWER_CALL");
             intent.putExtra("caller", caller);
+            intent.putExtra("isVideo", isVideoCall);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         });
@@ -355,6 +501,10 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     public void onCallEstablished() {
         runOnUiThread(() -> {
             binding.tvCallState.setText("通话中");
+            showCallControls();
+            if (isVideoEnabled) {
+                setupVideoSurfaces();
+            }
             startCallTimer();
         });
     }
@@ -503,6 +653,40 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                     Log.i(TAG, "已启用 " + pt.getMimeType() + " 编解码器");
                 }
             }
+        }
+    }
+
+    private void showOnlyHangupButton() {
+        binding.incomingCallButtons.setVisibility(View.GONE);
+        binding.callControlsLayout.setVisibility(View.VISIBLE);
+        // 只显示挂断按钮，隐藏其它功能按钮
+        binding.btnMute.setVisibility(View.GONE);
+        binding.btnSpeaker.setVisibility(View.GONE);
+        binding.btnVideo.setVisibility(View.GONE);
+        binding.btnSwitchCamera.setVisibility(View.GONE);
+        binding.doorControlButtons.setVisibility(View.GONE);
+        binding.btnHangup.setVisibility(View.VISIBLE);
+    }
+
+    private void showOnlyAnswerRejectButtons() {
+        binding.incomingCallButtons.setVisibility(View.VISIBLE);
+        binding.callControlsLayout.setVisibility(View.GONE);
+    }
+
+    private void showCallControls() {
+        binding.incomingCallButtons.setVisibility(View.GONE);
+        binding.callControlsLayout.setVisibility(View.VISIBLE);
+        // 显示所有功能按钮
+        binding.btnMute.setVisibility(View.VISIBLE);
+        binding.btnSpeaker.setVisibility(View.VISIBLE);
+        binding.btnVideo.setVisibility(View.VISIBLE);
+        binding.doorControlButtons.setVisibility(View.VISIBLE);
+        binding.btnHangup.setVisibility(View.VISIBLE);
+        // 视频相关
+        if (isVideoEnabled) {
+            binding.btnSwitchCamera.setVisibility(View.VISIBLE);
+        } else {
+            binding.btnSwitchCamera.setVisibility(View.GONE);
         }
     }
 }
