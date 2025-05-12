@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_LOGS"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".app.WuyeApplication"
@@ -116,11 +117,11 @@
             android:exported="false"
             android:label="SIP设置" />
         
-        <service 
+        <service
             android:name=".sip.LinphoneService"
-            android:foregroundServiceType="phoneCall"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="microphone|phoneCall" />
 
         <activity
             android:name=".ui.call.CallActivity"

@@ -14,6 +14,7 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 
 import com.example.wuyeapp.R;
+import com.example.wuyeapp.ui.call.CallActivity;
 
 import org.linphone.core.Address;
 import org.linphone.core.AudioDevice;
@@ -41,6 +42,12 @@ import com.example.wuyeapp.utils.NetworkUtil;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+
+import android.net.Uri;
+import android.os.PowerManager;
+import android.provider.Settings;
+
+import android.app.PendingIntent;
 
 public class LinphoneService extends Service {
     private static final String TAG = "LinphoneService";
@@ -70,10 +77,11 @@ public class LinphoneService extends Service {
         // 创建通知渠道
         createNotificationChannel();
         
-        // 创建并启动前台服务
-        Notification notification = createForegroundNotification();
-        startForeground(NOTIFICATION_ID, notification);
-        Log.i(TAG, "LinphoneService已启动为前台服务");
+        // 启动为前台服务，提高优先级避免系统杀死
+        startForeground(NOTIFICATION_ID, createForegroundNotification());
+        
+        // 请求忽略电池优化
+        requestIgnoreBatteryOptimization();
         
         // 初始化LinphoneManager
         linphoneManager = LinphoneManager.getInstance(getApplicationContext());
@@ -167,11 +175,39 @@ public class LinphoneService extends Service {
         }
     }
     
+    // 请求忽略电池优化
+    private void requestIgnoreBatteryOptimization() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                String packageName = getPackageName();
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                    Log.i(TAG, "请求忽略电池优化以保持SIP服务在后台运行");
+                    Intent intent = new Intent();
+                    intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + packageName));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "请求忽略电池优化失败", e);
+        }
+    }
+    
+    // 创建前台服务通知
     private Notification createForegroundNotification() {
+        Intent notificationIntent = new Intent(this, CallActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                this, 0, notificationIntent, 
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("物业SIP服务")
-                .setContentText("SIP服务正在运行")
+                .setContentText("保持连接，随时接听户户通来电")
                 .setSmallIcon(R.drawable.ic_call)
+                .setContentIntent(pendingIntent)
+                .setPriority(NotificationCompat.PRIORITY_MIN) // 静默通知，不打扰用户
                 .build();
     }
     

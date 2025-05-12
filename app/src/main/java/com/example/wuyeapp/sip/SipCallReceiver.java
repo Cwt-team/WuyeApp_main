@@ -35,11 +35,11 @@ public class SipCallReceiver extends BroadcastReceiver {
             // 显示来电通知
             showIncomingCallNotification(context, caller);
             
-            // 直接启动来电界面
+            // 直接启动来电界面，添加标志以确保从任何界面都能正常启动
             Intent callIntent = new Intent(context, CallActivity.class);
             callIntent.setAction("ANSWER_CALL");
             callIntent.putExtra("caller", caller);
-            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             context.startActivity(callIntent);
         }
     }
