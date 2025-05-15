@@ -7,6 +7,8 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.util.Log;
+import android.content.BroadcastReceiver;
+import android.app.NotificationManager;
 
 import org.linphone.core.Call;
 import org.linphone.core.Core;
@@ -24,6 +26,28 @@ public class LinphoneSipManager {
     private boolean isBound = false;
     private LinphoneCallback linphoneCallback;
     private SipCallback sipCallback; // 用于兼容旧接口
+    
+    /**
+     * 内部类：来电拒接广播接收器
+     */
+    public static class CallDeclineReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            Log.i(TAG, "收到广播: " + action);
+            
+            if ("DECLINE_CALL".equals(action)) {
+                Log.i(TAG, "准备拒接来电");
+                // 取消来电通知
+                NotificationManager notificationManager = 
+                        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                notificationManager.cancel(100); // 使用WuyeApplication中的NOTIFICATION_ID
+                
+                // 获取单例实例并挂断来电
+                LinphoneSipManager.getInstance().hangUp();
+            }
+        }
+    }
     
     private final ServiceConnection connection = new ServiceConnection() {
         @Override

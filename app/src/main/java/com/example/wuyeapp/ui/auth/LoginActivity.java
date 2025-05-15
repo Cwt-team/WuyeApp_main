@@ -127,8 +127,9 @@ public class LoginActivity extends AppCompatActivity {
 
         // 设置注册按钮点击事件
         binding.tvRegister.setOnClickListener(v -> {
-            // TODO: 跳转到注册页面
-            Toast.makeText(this, "注册功能尚未开放", Toast.LENGTH_SHORT).show();
+            // 跳转到注册页面
+            Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
+            startActivity(intent);
         });
 
         // 将数据库测试按钮改为API连接测试按钮

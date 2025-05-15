@@ -9,6 +9,8 @@ import com.example.wuyeapp.model.base.BaseResponse;
 import com.example.wuyeapp.model.maintenance.MaintenanceRequest;
 import com.example.wuyeapp.model.maintenance.MaintenanceListResponse;
 import com.example.wuyeapp.model.maintenance.MaintenanceDetailResponse;
+import com.example.wuyeapp.model.community.CommunitiesResponse;
+import com.example.wuyeapp.model.application.ApplicationListResponse;
 
 import okhttp3.MultipartBody;
 import retrofit2.Call;
@@ -32,6 +34,16 @@ public interface ApiService {
     Call<LoginResponse> login(
             @Field("username") String username,
             @Field("password") String password
+    );
+    
+    // 注册API
+    @FormUrlEncoded
+    @POST("api/mobile/register")
+    Call<BaseResponse> register(
+            @Field("username") String username,
+            @Field("password") String password,
+            @Field("name") String name,
+            @Field("phone") String phoneNumber
     );
     
     // 获取业主信息
@@ -87,5 +99,33 @@ public interface ApiService {
     Call<BaseResponse> evaluateMaintenanceRequest(
         @Path("id") long id,
         @Body Map<String, Object> evaluationData
+    );
+    
+    // 获取社区列表
+    @GET("api/mobile/communities")
+    Call<CommunitiesResponse> getCommunities();
+    
+    // 提交房屋绑定申请
+    @FormUrlEncoded
+    @POST("api/mobile/housing-application")
+    Call<BaseResponse> submitHousingApplication(
+        @Field("ownerId") long ownerId,
+        @Field("communityId") int communityId,
+        @Field("buildingName") String buildingName,
+        @Field("unitName") String unitName,
+        @Field("houseNumber") String houseNumber,
+        @Field("idCard") String idCard
+    );
+    
+    // 获取用户房屋绑定申请记录
+    @GET("api/mobile/housing-applications/{ownerId}")
+    Call<ApplicationListResponse> getApplications(@Path("ownerId") long ownerId);
+    
+    // 上传申请证明材料
+    @Multipart
+    @POST("api/mobile/housing-application/{id}/proof")
+    Call<BaseResponse> uploadApplicationProof(
+        @Path("id") long applicationId,
+        @Part MultipartBody.Part image
     );
 }
