@@ -1,5 +1,8 @@
 package com.example.wuyeapp.model.base;
 
+import com.google.gson.annotations.SerializedName;
+import java.util.Map;
+
 /**
  * 基础响应类，用于通用API响应
  */
@@ -7,6 +10,12 @@ public class BaseResponse<T> {
     private boolean success;
     private String message;
     private T data;
+
+    // 用于接收后端返回的额外字段
+    @SerializedName("houseExists")
+    private Boolean houseExists;
+    @SerializedName("houseId")
+    private Integer houseId;
 
     public BaseResponse() {
     }
@@ -44,5 +53,21 @@ public class BaseResponse<T> {
 
     public void setData(T data) {
         this.data = data;
+    }
+
+    public Boolean getHouseExists() {
+        return houseExists;
+    }
+
+    public void setHouseExists(Boolean houseExists) {
+        this.houseExists = houseExists;
+    }
+
+    public Integer getHouseId() {
+        return houseId;
+    }
+
+    public void setHouseId(Integer houseId) {
+        this.houseId = houseId;
     }
 } 

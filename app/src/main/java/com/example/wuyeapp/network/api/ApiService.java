@@ -11,6 +11,9 @@ import com.example.wuyeapp.model.maintenance.MaintenanceListResponse;
 import com.example.wuyeapp.model.maintenance.MaintenanceDetailResponse;
 import com.example.wuyeapp.model.community.CommunitiesResponse;
 import com.example.wuyeapp.model.application.ApplicationListResponse;
+import com.example.wuyeapp.model.building.BuildingListResponse;
+import com.example.wuyeapp.model.unit.UnitListResponse;
+import com.example.wuyeapp.model.room.RoomListResponse;
 
 import okhttp3.MultipartBody;
 import retrofit2.Call;
@@ -128,4 +131,16 @@ public interface ApiService {
         @Path("id") long applicationId,
         @Part MultipartBody.Part image
     );
+
+    // 获取小区下所有楼栋
+    @GET("api/mobile/buildings")
+    Call<BuildingListResponse> getBuildings(@Query("communityId") int communityId);
+
+    // 获取楼栋下所有单元
+    @GET("api/mobile/units")
+    Call<UnitListResponse> getUnits(@Query("buildingId") int buildingId);
+
+    // 获取单元下所有房间
+    @GET("api/mobile/rooms")
+    Call<RoomListResponse> getRooms(@Query("unitId") int unitId);
 }

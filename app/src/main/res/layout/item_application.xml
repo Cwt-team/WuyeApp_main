@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
+
+    <TextView
+        android:id="@+id/tvCommunity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="小区名称"
+        android:textStyle="bold"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tvHouse"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="楼栋-单元-房间"
+        android:textSize="14sp"
+        android:layout_marginTop="2dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+        <TextView
+            android:id="@+id/tvTime"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="申请时间"
+            android:textSize="12sp"
+            android:textColor="#888888" />
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="状态"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvCallback"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="拒绝原因"
+        android:textColor="#F44336"
+        android:textSize="13sp"
+        android:layout_marginTop="2dp"
+        android:visibility="gone" />
+
+</LinearLayout> 

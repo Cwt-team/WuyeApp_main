@@ -89,49 +89,55 @@
                 android:spinnerMode="dropdown" />
 
             <!-- 楼栋信息 -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/til_building"
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:hint="楼栋号">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_building"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="text" />
-            </com.google.android.material.textfield.TextInputLayout>
+                android:text="选择楼栋"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <Spinner
+                android:id="@+id/spinner_building"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:minHeight="48dp"
+                android:spinnerMode="dropdown" />
 
             <!-- 单元信息 -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/til_unit"
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:hint="单元号">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_unit"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="text" />
-            </com.google.android.material.textfield.TextInputLayout>
+                android:text="选择单元"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <Spinner
+                android:id="@+id/spinner_unit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:minHeight="48dp"
+                android:spinnerMode="dropdown" />
 
             <!-- 房号信息 -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/til_house_number"
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:hint="房间号">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_house_number"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="text" />
-            </com.google.android.material.textfield.TextInputLayout>
+                android:text="选择房间"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+            <Spinner
+                android:id="@+id/spinner_room"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:minHeight="48dp"
+                android:spinnerMode="dropdown" />
 
             <!-- 身份证号 -->
             <com.google.android.material.textfield.TextInputLayout

@@ -246,6 +246,27 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#EEEEEE"/>
+
+            <!-- 我的房屋申请 -->
+            <LinearLayout
+                android:id="@+id/myApplications"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:background="@android:color/white"
+                android:gravity="center_vertical">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_agenda" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="我的房屋申请"
+                    android:textSize="16sp"
+                    android:layout_marginStart="12dp" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

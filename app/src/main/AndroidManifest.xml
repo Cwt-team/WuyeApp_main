@@ -168,5 +168,7 @@
             android:name=".ui.profile.HouseBindingActivity"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+        <activity android:name=".ui.profile.ApplicationListActivity" />
     </application>
 </manifest>

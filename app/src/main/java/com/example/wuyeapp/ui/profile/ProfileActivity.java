@@ -117,13 +117,19 @@ public class ProfileActivity extends AppCompatActivity {
         // 添加房屋绑定申请的点击事件
         binding.houseBinding.setOnClickListener(v -> {
             // 只有未绑定房屋的用户才能申请绑定
-            if (ownerDetail != null && ownerDetail.getHouseInfo() != null && ownerDetail.getHouseInfo().getId() != null) {
+            if (ownerDetail != null && ownerDetail.getHouseInfo() != null && ownerDetail.getHouseInfo().getId() > 0) {
                 Toast.makeText(this, "您已绑定房屋，无需再次申请", Toast.LENGTH_SHORT).show();
             } else {
                 // 跳转到房屋绑定申请页面
                 Intent intent = new Intent(this, HouseBindingActivity.class);
                 startActivity(intent);
             }
+        });
+
+        // 添加我的房屋申请入口
+        binding.myApplications.setOnClickListener(v -> {
+            Intent intent = new Intent(ProfileActivity.this, ApplicationListActivity.class);
+            startActivity(intent);
         });
     }
     

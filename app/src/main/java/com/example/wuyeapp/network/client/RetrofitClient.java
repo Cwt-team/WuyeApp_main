@@ -13,7 +13,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
     private static final String TAG = "RetrofitClient";
-    private static final String BASE_URL = "http://116.198.199.38:5000"; // 与您后端服务匹配的URL
+    private static final String BASE_URL = "http://8.138.26.199:5000"; // 与您后端服务匹配的URL
     private static RetrofitClient instance;
     private Retrofit retrofit;
     private ApiService apiService;
