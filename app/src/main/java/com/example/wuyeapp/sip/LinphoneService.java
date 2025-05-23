@@ -321,77 +321,57 @@ public class LinphoneService extends Service {
     public void makeCall(String destination, boolean withVideo) {
         try {
             Log.i(TAG, "====== 开始拨打电话到: " + destination + " ======");
-            
+            Log.i(TAG, "[视频通话] 目标: " + destination + ", 是否带视频: " + withVideo);
             Core core = linphoneManager.getCore();
             if (core == null) {
                 Log.e(TAG, "Core为空，无法拨打电话");
                 return;
             }
-            
-            // 确保初始化音频设备
             linphoneManager.initAudioDevices();
-            
-            // 请求音频焦点
             requestAudioFocus();
-            
-            // 打印SIP配置状态信息
             printSipConfigStatus();
-            
-            // 在打电话前预先收集ICE候选
             ensureICECandidatesCollection(core);
-            
-            // 配置网络参数，允许视频呼叫
             if (withVideo) {
-                // 视频通话时确保视频功能启用
+                Log.i(TAG, "[视频通话] 启用视频采集与显示");
                 core.getConfig().setBool("video", "capture", true);
                 core.getConfig().setBool("video", "display", true);
             }
-            
-            // 配置编解码器 - 扩展了更多编解码器支持
             configureFreeswitchCompatibleCodecs(core);
-            
-            // 创建地址
+            // 打印当前视频编解码器启用情况
+            for (PayloadType pt : core.getVideoPayloadTypes()) {
+                Log.i(TAG, "[视频通话] 编解码器: " + pt.getMimeType() + ", 启用: " + pt.enabled() + ", fmtp: " + pt.getRecvFmtp());
+            }
             Address remoteAddress = createRemoteAddress(destination);
             if (remoteAddress == null) return;
-            
-            // 创建参数
             CallParams params = core.createCallParams(null);
             if (params != null) {
-                // 设置通话参数
-                params.setMediaEncryption(MediaEncryption.None); // 不使用加密，提高兼容性
-                params.setVideoEnabled(withVideo); // 根据参数启用视频
-                params.setAudioEnabled(true); // 确保音频启用
+                params.setMediaEncryption(MediaEncryption.None);
+                params.setVideoEnabled(withVideo);
+                params.setAudioEnabled(true);
                 params.setAudioDirection(MediaDirection.SendRecv);
-                params.setEarlyMediaSendingEnabled(true); // 启用早期媒体
-                
-                // 如果是视频通话，配置视频参数
+                params.setEarlyMediaSendingEnabled(true);
                 if (withVideo) {
-                    Log.i(TAG, "配置视频参数");
+                    Log.i(TAG, "[视频通话] 配置视频参数: VideoEnabled=" + params.isVideoEnabled());
                     params.setVideoDirection(MediaDirection.SendRecv);
-                    params.setLowBandwidthEnabled(false); // 视频通话时不用低带宽模式
+                    params.setLowBandwidthEnabled(false);
                 } else {
                     Log.i(TAG, "纯音频通话，不启用视频");
                 }
-                
-                // 自定义头，帮助服务器识别
                 params.addCustomHeader("X-FS-Support", "update_display,timer");
                 params.addCustomHeader("X-App-Type", "WuyeApp");
-                
-                // 配置RTP相关参数，增强媒体协商
                 core.getConfig().setInt("rtp", "timeout", 30);
-                core.getConfig().setBool("rtp", "symmetric", true); // 使用对称RTP
-                core.getConfig().setInt("net", "dns_timeout", 15); // 增加DNS解析超时
-                
-                // 发起呼叫
+                core.getConfig().setBool("rtp", "symmetric", true);
+                core.getConfig().setInt("net", "dns_timeout", 15);
                 Call call = core.inviteAddressWithParams(remoteAddress, params);
-                
                 if (call != null) {
                     Log.i(TAG, "呼叫请求已发送" + (withVideo ? " (带视频)" : " (纯音频)"));
-                    
-                    // 如果是视频通话，设置视频输出
                     if (withVideo) {
-                        // 确保视频通道已准备好
                         core.getConfig().setBool("video", "automatically_accept", true);
+                    }
+                    // 打印本地SDP
+                    CallParams localParams = call.getCurrentParams();
+                    if (localParams != null) {
+                        Log.i(TAG, "[视频通话] 本地SDP参数: VideoEnabled=" + localParams.isVideoEnabled() + ", MediaEncryption=" + localParams.getMediaEncryption());
                     }
                 }
             }
@@ -570,41 +550,34 @@ public class LinphoneService extends Service {
     public void answerCall(boolean withVideo) {
         try {
             Log.i(TAG, "====== 接听来电 ======");
-            
-            // 请求音频焦点
+            Log.i(TAG, "[视频通话] 接听时是否带视频: " + withVideo);
             requestAudioFocus();
-            
-            // 初始化音频设备
             checkAndInitializeAudioDevices();
-            
             Core core = linphoneManager.getCore();
             if (core == null) {
                 Log.e(TAG, "Core为空，无法接听电话");
                 return;
             }
-            
             Call call = core.getCurrentCall();
             if (call == null) {
                 Log.e(TAG, "当前没有来电，无法接听");
                 return;
             }
-            
-            // 创建通话参数 - 修改为直接创建新参数
             CallParams params = core.createCallParams(call);
             if (params != null) {
-                // 确保音频流设置正确
                 params.setAudioEnabled(true);
                 params.setAudioDirection(MediaDirection.SendRecv);
                 params.setVideoEnabled(withVideo);
-                
-                // 使用更兼容的设置
                 params.setLowBandwidthEnabled(false);
-                
-                // 接听电话
+                Log.i(TAG, "[视频通话] 接听参数: VideoEnabled=" + params.isVideoEnabled());
                 call.acceptWithParams(params);
                 Log.i(TAG, "已接听" + (withVideo ? "视频" : "语音") + "通话");
+                // 打印本地SDP
+                CallParams localParams = call.getCurrentParams();
+                if (localParams != null) {
+                    Log.i(TAG, "[视频通话] 本地SDP参数: VideoEnabled=" + localParams.isVideoEnabled() + ", MediaEncryption=" + localParams.getMediaEncryption());
+                }
             } else {
-                // 如果无法创建参数，使用简单方式接听
                 call.accept();
                 Log.i(TAG, "已使用默认参数接听通话");
             }

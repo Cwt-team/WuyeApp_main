@@ -73,8 +73,8 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
         // 先初始化界面
         initializeUI();
         
-        // 设置Linphone回调
-        LinphoneSipManager.getInstance().setLinphoneCallback(this);
+        // 设置Linphone回调（已由Application全局设置，这里注释掉，避免覆盖全局回调）
+        // LinphoneSipManager.getInstance().setLinphoneCallback(this);
         
         // 请求必要的权限
         requestPermissions();
@@ -88,38 +88,55 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
         // 返回按钮点击事件
         binding.btnBack.setOnClickListener(v -> finish());
         
-        // 拨号按钮点击事件
-        binding.btnCall.setOnClickListener(v -> {
+        // 视频通话按钮点击事件
+        binding.btnVideoCall.setOnClickListener(v -> {
             if (dialNumber.length() > 0) {
                 String number = dialNumber.toString();
-                
-                // 检查SIP注册状态
                 if (!isSipRegistered()) {
                     Toast.makeText(this, "SIP账户未注册，请先在设置中配置SIP账户", Toast.LENGTH_LONG).show();
                     navigateToSipSettings();
                     return;
                 }
-                
-                // 启动CallActivity
                 Intent callIntent = new Intent(this, CallActivity.class);
                 callIntent.setAction("MAKE_CALL");
                 callIntent.putExtra("number", number);
+                callIntent.putExtra("isVideo", true);
                 startActivity(callIntent);
             } else {
                 Toast.makeText(this, "请输入号码", Toast.LENGTH_SHORT).show();
             }
         });
-
-        // 取消/删除按钮点击事件
-        binding.btnCancel.setOnClickListener(v -> {
+        // 语音通话按钮点击事件
+        binding.btnAudioCall.setOnClickListener(v -> {
+            if (dialNumber.length() > 0) {
+                String number = dialNumber.toString();
+                if (!isSipRegistered()) {
+                    Toast.makeText(this, "SIP账户未注册，请先在设置中配置SIP账户", Toast.LENGTH_LONG).show();
+                    navigateToSipSettings();
+                    return;
+                }
+                Intent callIntent = new Intent(this, CallActivity.class);
+                callIntent.setAction("MAKE_CALL");
+                callIntent.putExtra("number", number);
+                callIntent.putExtra("isVideo", false);
+                startActivity(callIntent);
+            } else {
+                Toast.makeText(this, "请输入号码", Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        // 物业按钮点击事件
+        binding.btnProperty.setOnClickListener(v -> {
+            Toast.makeText(this, "物业功能演示", Toast.LENGTH_SHORT).show();
+        });
+        // 删除按钮点击事件
+        binding.btnDelete.setOnClickListener(v -> {
             if (dialNumber.length() > 0) {
                 dialNumber.deleteCharAt(dialNumber.length() - 1);
                 updateDialNumber();
             }
         });
-        
-        // 长按删除按钮清空号码
-        binding.btnCancel.setOnLongClickListener(v -> {
+        binding.btnDelete.setOnLongClickListener(v -> {
             dialNumber.setLength(0);
             updateDialNumber();
             return true;

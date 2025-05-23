@@ -73,6 +73,10 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             
             // 检查是接听来电还是拨打电话
             processIntent(getIntent());
+            // 新增：如果是视频通话，绑定视频窗口
+            if (isVideoCall || isVideoEnabled) {
+                setupVideoSurfaces();
+            }
         }
 
         @Override
@@ -88,8 +92,8 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
         binding = ActivityCallBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         
-        // 设置LinphoneCallback
-        LinphoneSipManager.getInstance().setLinphoneCallback(this);
+        // 设置LinphoneCallback（已由Application全局设置，这里注释掉，避免覆盖全局回调）
+        // LinphoneSipManager.getInstance().setLinphoneCallback(this);
         
         // 绑定Linphone服务
         Intent intent = new Intent(this, LinphoneService.class);
@@ -104,29 +108,26 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             String action = getIntent().getAction();
             if ("MAKE_CALL".equals(action)) {
                 String number = getIntent().getStringExtra("number");
-                binding.tvCallState.setText("正在拨打...");
-                binding.tvCallerId.setText(number);
-                
-                // 是否为视频通话
                 isVideoCall = getIntent().getBooleanExtra("isVideo", false);
-                
-                // 如果是视频通话，预先显示视频区域
+                isVideoEnabled = isVideoCall; // 保证视频通话时isVideoEnabled为true
                 if (isVideoCall) {
+                    binding.tvCallState.setText("正在发起视频通话...");
                     showVideoLayout(true);
                 } else {
+                    binding.tvCallState.setText("正在发起语音通话...");
                     showVideoLayout(false);
                 }
-                
+                binding.tvCallerId.setText(number);
                 // 只显示挂断按钮
                 showOnlyHangupButton();
             } else if ("ANSWER_CALL".equals(action)) {
                 String caller = getIntent().getStringExtra("caller");
+                isVideoCall = getIntent().getBooleanExtra("isVideo", false);
+                isVideoEnabled = isVideoCall;
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(caller);
-                
                 // 来电时显示接听/拒接按钮，隐藏开门按钮
                 showOnlyAnswerRejectButtons();
-                
                 // 默认先隐藏视频布局
                 showVideoLayout(false);
             }
@@ -272,32 +273,29 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 // 拨打电话
                 String number = intent.getStringExtra("number");
                 if (number != null && !number.isEmpty()) {
-                    binding.tvCallState.setText("正在拨打...");
+                    isVideoCall = intent.getBooleanExtra("isVideo", false);
+                    isVideoEnabled = isVideoCall;
+                    if (isVideoCall) {
+                        binding.tvCallState.setText("正在发起视频通话...");
+                        showVideoLayout(true);
+                    } else {
+                        binding.tvCallState.setText("正在发起语音通话...");
+                        showVideoLayout(false);
+                    }
                     binding.tvCallerId.setText(number);
-                    
                     // 只显示挂断按钮
                     showOnlyHangupButton();
-                    
                     if (linphoneService != null) {
                         Log.d(TAG, "开始拨打: " + number);
-                        
                         // 确保音频设备已初始化
                         ensureAudioDevicesReady();
-                        
                         // 判断是否是视频通话
-                        isVideoCall = intent.getBooleanExtra("isVideo", false);
                         if (isVideoCall) {
-                            // 启用视频通话
                             linphoneService.makeVideoCall(number);
-                            isVideoEnabled = true;
-                            showVideoLayout(true);
                             setupVideoSurfaces();
-                            // 显示摄像头切换按钮
                             binding.btnSwitchCamera.setVisibility(View.VISIBLE);
                         } else {
                             linphoneService.makeCall(number, false);
-                            showVideoLayout(false);
-                            // 隐藏摄像头切换按钮
                             binding.btnSwitchCamera.setVisibility(View.GONE);
                         }
                     } else {
@@ -309,17 +307,16 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                     finish();
                 }
             } else if ("ANSWER_CALL".equals(action)) {
-                // 接听来电
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(intent.getStringExtra("caller"));
-                
+                isVideoCall = intent.getBooleanExtra("isVideo", false);
+                isVideoEnabled = isVideoCall;
                 // 只显示接听/拒接按钮
                 showOnlyAnswerRejectButtons();
-                
                 // 确保音频设备已初始化
                 ensureAudioDevicesReady();
-                
                 // 不再自动接听，而是等待用户点击接听按钮
+                showVideoLayout(false);
             }
         }
     }
@@ -328,7 +325,11 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     private void showVideoLayout(boolean show) {
         if (show) {
             binding.remoteVideoLayout.setVisibility(View.VISIBLE);
-            binding.audioCallLayout.setVisibility(View.GONE);
+            // 视频通话时也显示号码和状态等信息（只隐藏通话时的按钮区）
+            binding.audioCallLayout.setVisibility(View.VISIBLE);
+            // 只隐藏音频相关的按钮区（如有需要可细化）
+            binding.incomingCallButtons.setVisibility(View.GONE);
+            binding.callControlsLayout.setVisibility(View.GONE);
         } else {
             binding.remoteVideoLayout.setVisibility(View.GONE);
             binding.audioCallLayout.setVisibility(View.VISIBLE);
@@ -493,14 +494,22 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     @Override
     public void onCallProgress() {
         runOnUiThread(() -> {
-            binding.tvCallState.setText("呼叫中...");
+            if (isVideoCall || isVideoEnabled) {
+                binding.tvCallState.setText("视频通话呼叫中...");
+            } else {
+                binding.tvCallState.setText("语音通话呼叫中...");
+            }
         });
     }
     
     @Override
     public void onCallEstablished() {
         runOnUiThread(() -> {
-            binding.tvCallState.setText("通话中");
+            if (isVideoCall || isVideoEnabled) {
+                binding.tvCallState.setText("视频通话中");
+            } else {
+                binding.tvCallState.setText("语音通话中");
+            }
             showCallControls();
             if (isVideoEnabled) {
                 setupVideoSurfaces();
