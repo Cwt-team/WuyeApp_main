@@ -40,27 +40,43 @@ public class ProfileActivity extends AppCompatActivity {
 
         // 获取当前登录的用户信息
         OwnerInfo currentOwner = SessionManager.getInstance(this).getOwnerInfo();
-        if (currentOwner != null && currentOwner.getId() != 0) {
-            // 显示基本用户信息（从Session中获取）
-            binding.phoneNumber.setText(currentOwner.getPhoneNumber());
-            
-            // 从API获取详细信息
-            fetchOwnerDetail(currentOwner.getId());
-        } else {
-            LogUtil.e(TAG + " 当前登录用户信息无效");
-            Toast.makeText(this, "登录信息已失效，请重新登录", Toast.LENGTH_SHORT).show();
-            // 跳转到登录页面
-            Intent intent = new Intent(this, LoginActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-            finish();
+        if (currentOwner == null) {
+            // 游客模式
+            binding.phoneNumber.setText("游客");
+            binding.address.setText("暂无");
+            // 隐藏/禁用除设置外的所有入口
+            binding.personalInfo.setVisibility(View.GONE);
+            binding.switchOwner.setVisibility(View.GONE);
+            binding.faceRecord.setVisibility(View.GONE);
+            binding.houseBinding.setVisibility(View.GONE);
+            binding.myApplications.setVisibility(View.GONE);
+            // 设置按钮可用
+            binding.settings.setVisibility(View.VISIBLE);
+            binding.settings.setOnClickListener(v -> {
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+            });
+            // 底部导航栏全部禁用点击，弹窗提示
+            View.OnClickListener loginTip = v -> {
+                Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
+            };
+            binding.navHome.setOnClickListener(loginTip);
+            binding.navUnlock.setOnClickListener(loginTip);
+            binding.navProfile.setOnClickListener(loginTip);
+            return;
         }
+
+        // 显示基本用户信息（从Session中获取）
+        binding.phoneNumber.setText(currentOwner.getPhoneNumber());
+        
+        // 从API获取详细信息
+        fetchOwnerDetail(currentOwner.getId());
 
         // 设置底部导航栏点击事件
         binding.navHome.setOnClickListener(v -> {
             Intent intent = new Intent(this, MainActivity.class);
             startActivity(intent);
-            finish(); // 结束当前活动
+            finish();
         });
 
         binding.navUnlock.setOnClickListener(v -> {

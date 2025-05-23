@@ -35,8 +35,8 @@ import com.example.wuyeapp.databinding.ItemLivingServiceBinding;
 import com.example.wuyeapp.session.SessionManager;
 import com.example.wuyeapp.ui.profile.ProfileActivity;
 import com.example.wuyeapp.ui.visitor.DialPadActivity;
-import com.example.wuyeapp.ui.visitor.InviteVisitorActivity;
-import com.example.wuyeapp.ui.visitor.ScanQrActivity;
+// import com.example.wuyeapp.ui.visitor.InviteVisitorActivity;
+// import com.example.wuyeapp.ui.visitor.ScanQrActivity;
 import com.example.wuyeapp.utils.LogUtil;
 import com.example.wuyeapp.ui.maintenance.MaintenanceActivity;
 import com.example.wuyeapp.ui.settings.SipSettingsActivity;
@@ -48,6 +48,8 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
+import com.example.wuyeapp.model.user.OwnerInfo;
+import com.example.wuyeapp.ui.auth.LoginActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -122,6 +124,11 @@ public class MainActivity extends AppCompatActivity {
         });
 
         binding.navUnlock.setOnClickListener(v -> {
+            if (!SessionManager.getInstance(this).isLoggedIn()) {
+                Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(this, LoginActivity.class));
+                return;
+            }
             Toast.makeText(this, "点击了开锁", Toast.LENGTH_SHORT).show();
             // TODO: 跳转到开锁页面
         });
@@ -131,14 +138,14 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
         
-        // 设置报事报修按钮的点击事件
-        binding.btnRepair.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, MaintenanceActivity.class);
-                startActivity(intent);
-            }
-        });
+        // // 设置报事报修按钮的点击事件
+        // binding.btnRepair.setOnClickListener(new View.OnClickListener() {
+        //     @Override
+        //     public void onClick(View v) {
+        //         Intent intent = new Intent(MainActivity.this, MaintenanceActivity.class);
+        //         startActivity(intent);
+        //     }
+        // });
 
         // 请求必要的权限
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -178,24 +185,24 @@ public class MainActivity extends AppCompatActivity {
                             startActivity(sipIntent);
                             break;
                         case 2:
-                            Intent intent2 = new Intent(this, InviteVisitorActivity.class);
-                            startActivity(intent2);
+                            // Intent intent2 = new Intent(this, InviteVisitorActivity.class);
+                            // startActivity(intent2);
                             break;
                         case 3:
-                            Toast.makeText(this, "点击了呼叫电梯", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(this, "点击了呼叫电梯", Toast.LENGTH_SHORT).show();
                             break;
                             case 4:
-                            Intent intent = new Intent(this, ScanQrActivity.class);
-                            startActivity(intent);
+                            // Intent intent = new Intent(this, ScanQrActivity.class);
+                            // startActivity(intent);
                             break;
                         case 5:
-                            Toast.makeText(this, "点击了社区通知", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(this, "点击了社区通知", Toast.LENGTH_SHORT).show();
                             break;
                         case 6:
-                            Toast.makeText(this, "点击了报警记录", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(this, "点击了报警记录", Toast.LENGTH_SHORT).show();
                             break;
                         case 7:
-                            Toast.makeText(this, "点击了更多", Toast.LENGTH_SHORT).show();
+                            // Toast.makeText(this, "点击了更多", Toast.LENGTH_SHORT).show();
                             break;
                         default:
                             break;
@@ -205,10 +212,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 修改"更多"按钮的点击事件
-        binding.btnMore.setOnClickListener(v -> {
-            Intent intent = new Intent(this, MoreActivity.class);
-            startActivityForResult(intent, REQUEST_CODE_MORE);
-        });
+        // binding.btnMore.setOnClickListener(v -> {
+        //     Intent intent = new Intent(this, MoreActivity.class);
+        //     startActivityForResult(intent, REQUEST_CODE_MORE);
+        // });
     }
 
     private void setupImageIndicators(int count) {
@@ -261,19 +268,20 @@ public class MainActivity extends AppCompatActivity {
         binding.quickActionsGrid.removeAllViews();
         binding.quickActionsGrid.setColumnCount(4);
         
+        // 只添加"户户通"和"监控"
+        addQuickActionView("户户通");
+        addQuickActionView("监控");
+        /*
         // 添加选中的功能
         for (String function : selectedFunctions) {
             addQuickActionView(function);
         }
-        
         // 始终添加"更多"按钮
         View moreActionView = LayoutInflater.from(this).inflate(R.layout.item_quick_action, null);
         ImageView moreIcon = moreActionView.findViewById(R.id.function_icon);
         TextView moreName = moreActionView.findViewById(R.id.function_name);
-        
         moreIcon.setImageResource(R.drawable.ic_quick_action_more);
         moreName.setText("更多");
-        
         androidx.gridlayout.widget.GridLayout.LayoutParams params = 
             new androidx.gridlayout.widget.GridLayout.LayoutParams();
         params.width = 0;
@@ -282,11 +290,10 @@ public class MainActivity extends AppCompatActivity {
             androidx.gridlayout.widget.GridLayout.UNDEFINED, 1f);
         params.rowSpec = androidx.gridlayout.widget.GridLayout.spec(
             androidx.gridlayout.widget.GridLayout.UNDEFINED);
-        
         moreActionView.setLayoutParams(params);
         moreActionView.setOnClickListener(v -> startMoreActivity());
-        
         binding.quickActionsGrid.addView(moreActionView);
+        */
     }
     
     private void startMoreActivity() {
@@ -357,48 +364,59 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void handleQuickActionClick(String functionName) {
-        LogUtil.i(TAG + " 点击功能: " + functionName);
-        Intent intent;
-        switch (functionName) {
-            case "户户通":
-                intent = new Intent(this, DialPadActivity.class);
-                startActivity(intent);
-                break;
-            case "监控":
-                navigateToSipSettings();
-                break;
-            case "邀请访客":
-                intent = new Intent(this, InviteVisitorActivity.class);
-                startActivity(intent);
-                break;
-            case "呼叫电梯":
-                Toast.makeText(this, "启动呼叫电梯", Toast.LENGTH_SHORT).show();
-                break;
-            case "扫码开门":
-                intent = new Intent(this, ScanQrActivity.class);
-                startActivity(intent);
-                break;
-            case "社区通知":
-                Toast.makeText(this, "启动社区通知", Toast.LENGTH_SHORT).show();
-                break;
-            case "报警记录":
-                Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
-                break;
-            case "报事报修":
-                intent = new Intent(this, MaintenanceActivity.class);
-                startActivity(intent);
-                break;
-            default:
-                Toast.makeText(this, "功能开发中...", Toast.LENGTH_SHORT).show();
-                break;
-        }
-    }
+    // private void handleQuickActionClick(String functionName) {
+    //     LogUtil.i(TAG + " 点击功能: " + functionName);
+    //     Intent intent;
+    //     switch (functionName) {
+    //         case "户户通":
+    //             intent = new Intent(this, DialPadActivity.class);
+    //             startActivity(intent);
+    //             break;
+    //         case "监控":
+    //             navigateToSipSettings();
+    //             break;
+    //         case "邀请访客":
+    //             // intent = new Intent(this, InviteVisitorActivity.class);
+    //             // startActivity(intent);
+    //             break;
+    //         case "呼叫电梯":
+    //             // Toast.makeText(this, "启动呼叫电梯", Toast.LENGTH_SHORT).show();
+    //             break;
+    //         case "扫码开门":
+    //             // intent = new Intent(this, ScanQrActivity.class);
+    //             // startActivity(intent);
+    //             break;
+    //         case "社区通知":
+    //             // Toast.makeText(this, "启动社区通知", Toast.LENGTH_SHORT).show();
+    //             break;
+    //         case "报警记录":
+    //             // Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
+    //             break;
+    //         case "报事报修":
+    //             intent = new Intent(this, MaintenanceActivity.class);
+    //             startActivity(intent);
+    //             break;
+    //         default:
+    //             Toast.makeText(this, "功能开发中...", Toast.LENGTH_SHORT).show();
+    //             break;
+    //     }
+    // }
 
     @Override
     protected void onResume() {
         super.onResume();
         LogUtil.i(TAG + " onResume");
+        // 顶部个人信息展示真实数据
+        OwnerInfo owner = SessionManager.getInstance(this).getOwnerInfo();
+        if (owner != null) {
+            binding.appName.setText(String.valueOf(owner.getName() != null && !owner.getName().isEmpty() ? owner.getName() : (owner.getAccount() != null ? owner.getAccount() : owner.getPhoneNumber())));
+            binding.address.setText(owner.getPhoneNumber() != null ? owner.getPhoneNumber() : "");
+            binding.onlineStatus.setText("隐身");
+        } else {
+            binding.appName.setText("游客");
+            binding.address.setText("");
+            binding.onlineStatus.setText("未登录");
+        }
         loadAndUpdateQuickActions();
     }
 
@@ -407,6 +425,10 @@ public class MainActivity extends AppCompatActivity {
         ArrayList<String> selectedFunctions = new ArrayList<>();
         int count = prefs.getInt("count", 0);
         
+        // 只保留"户户通"和"监控"
+        selectedFunctions.add("户户通");
+        selectedFunctions.add("监控");
+        /*
         if (count == 0) {
             // 如果没有保存的状态，使用默认的快捷功能
             selectedFunctions.add("户户通");
@@ -422,7 +444,7 @@ public class MainActivity extends AppCompatActivity {
                 selectedFunctions.add(prefs.getString("function_" + i, ""));
             }
         }
-        
+        */
         updateQuickActions(selectedFunctions);
     }
 
@@ -500,6 +522,49 @@ public class MainActivity extends AppCompatActivity {
             .setNegativeButton("取消", null)
             .create()
             .show();
+    }
+
+    private void handleQuickActionClick(String functionName) {
+        LogUtil.i(TAG + " 点击功能: " + functionName);
+        if (!SessionManager.getInstance(this).isLoggedIn()) {
+            Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, LoginActivity.class));
+            return;
+        }
+        Intent intent;
+        switch (functionName) {
+            case "户户通":
+                intent = new Intent(this, DialPadActivity.class);
+                startActivity(intent);
+                break;
+            case "监控":
+                navigateToSipSettings();
+                break;
+            case "邀请访客":
+                // intent = new Intent(this, InviteVisitorActivity.class);
+                // startActivity(intent);
+                break;
+            case "呼叫电梯":
+                // Toast.makeText(this, "启动呼叫电梯", Toast.LENGTH_SHORT).show();
+                break;
+            case "扫码开门":
+                // intent = new Intent(this, ScanQrActivity.class);
+                // startActivity(intent);
+                break;
+            case "社区通知":
+                // Toast.makeText(this, "启动社区通知", Toast.LENGTH_SHORT).show();
+                break;
+            case "报警记录":
+                // Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
+                break;
+            case "报事报修":
+                intent = new Intent(this, MaintenanceActivity.class);
+                startActivity(intent);
+                break;
+            default:
+                Toast.makeText(this, "功能开发中...", Toast.LENGTH_SHORT).show();
+                break;
+        }
     }
 }
 

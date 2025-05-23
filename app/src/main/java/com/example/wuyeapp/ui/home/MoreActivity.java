@@ -154,20 +154,20 @@ public class MoreActivity extends AppCompatActivity {
         List<FunctionItem> items = new ArrayList<>();
         items.add(new FunctionItem("户户通", R.drawable.ic_huhuotong, true));
         items.add(new FunctionItem("监控", R.drawable.ic_jiankong, true));
-        items.add(new FunctionItem("邀请访客", R.drawable.ic_yaoqingfangke, true));
-        items.add(new FunctionItem("呼叫电梯", R.drawable.ic_hujiaodianti, true));
-        items.add(new FunctionItem("扫码开门", R.drawable.ic_saomamenkai, true));
-        items.add(new FunctionItem("呼叫记录", R.drawable.ic_hujiaorecord, false));
+        // items.add(new FunctionItem("邀请访客", R.drawable.ic_yaoqingfangke, true));
+        // items.add(new FunctionItem("呼叫电梯", R.drawable.ic_hujiaodianti, true));
+        // items.add(new FunctionItem("扫码开门", R.drawable.ic_saomamenkai, true));
+        // items.add(new FunctionItem("呼叫记录", R.drawable.ic_hujiaorecord, false));
         return items;
     }
 
     private List<FunctionItem> getSmartLifeItems() {
         List<FunctionItem> items = new ArrayList<>();
-        items.add(new FunctionItem("社区通知", R.drawable.ic_shequtongzhi, true));
-        items.add(new FunctionItem("报警记录", R.drawable.ic_baojingjilu, true));
-        items.add(new FunctionItem("报事报修", R.drawable.ic_repair, false));
-        items.add(new FunctionItem("社区评价", R.drawable.ic_evaluate, false));
-        items.add(new FunctionItem("投诉建议", R.drawable.ic_suggest, false));
+        // items.add(new FunctionItem("社区通知", R.drawable.ic_shequtongzhi, true));
+        // items.add(new FunctionItem("报警记录", R.drawable.ic_baojingjilu, true));
+        // items.add(new FunctionItem("报事报修", R.drawable.ic_repair, false));
+        // items.add(new FunctionItem("社区评价", R.drawable.ic_evaluate, false));
+        // items.add(new FunctionItem("投诉建议", R.drawable.ic_suggest, false));
         return items;
     }
 

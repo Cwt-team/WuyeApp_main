@@ -31,11 +31,11 @@ import retrofit2.http.Query;
 import java.util.Map;
 
 public interface ApiService {
-    // 登录API
+    // 登录API（账号或手机号+密码）
     @FormUrlEncoded
     @POST("api/mobile/login")
     Call<LoginResponse> login(
-            @Field("username") String username,
+            @Field("username") String username, // 账号或手机号
             @Field("password") String password
     );
     

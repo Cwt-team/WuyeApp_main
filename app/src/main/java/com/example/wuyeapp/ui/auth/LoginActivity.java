@@ -62,7 +62,7 @@ public class LoginActivity extends AppCompatActivity {
             LogUtil.d(TAG + " 尝试登录: " + account);
 
             if (TextUtils.isEmpty(account)) {
-                binding.tilAccount.setError("请输入账号");
+                binding.tilAccount.setError("请输入账号/手机号");
                 return;
             } else {
                 binding.tilAccount.setError(null);
@@ -179,6 +179,13 @@ public class LoginActivity extends AppCompatActivity {
                     }
                 });
             }
+        });
+
+        // 暂不登录按钮点击事件
+        binding.btnSkipLogin.setOnClickListener(v -> {
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish();
         });
     }
 
