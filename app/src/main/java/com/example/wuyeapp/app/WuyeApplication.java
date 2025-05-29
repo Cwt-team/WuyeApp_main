@@ -275,6 +275,7 @@ public class WuyeApplication extends Application {
         
         try {
             // 尝试直接显示来电界面，绕过前台/后台检测机制
+            Log.d(TAG, "尝试构建直接启动来电界面的Intent");
             Intent directCallIntent = new Intent(this, CallActivity.class);
             directCallIntent.setAction("ANSWER_CALL");
             directCallIntent.putExtra("caller", caller);
@@ -292,8 +293,9 @@ public class WuyeApplication extends Application {
                          
             // 先尝试直接启动CallActivity，无论前台还是后台
             try {
-                Log.i(TAG, "尝试直接启动来电界面");
+                Log.d(TAG, "尝试通过startActivity直接启动来电界面");
                 startActivity(directCallIntent);
+                Log.d(TAG, "直接启动来电界面成功");
                 return; // 如果成功启动，就不需要显示通知了
             } catch (Exception e) {
                 Log.e(TAG, "无法直接启动来电界面，尝试使用通知: " + e.getMessage());
@@ -304,8 +306,9 @@ public class WuyeApplication extends Application {
             wakeupDevice();
             
             // 不管应用是否在前台，都显示系统通知确保来电通知可见
-            Log.i(TAG, "显示系统通知，确保来电通知可见");
+            Log.d(TAG, "尝试显示系统通知");
             showIncomingCallNotification(caller, call);
+            Log.d(TAG, "已调用showIncomingCallNotification");
             
         } catch (Exception e) {
             Log.e(TAG, "处理来电时出错: " + e.getMessage(), e);
