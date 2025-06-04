@@ -70,9 +70,10 @@ public class SipSettingsActivity extends AppCompatActivity {
     private void loadSettings() {
         binding.etUsername.setText(preferences.getString(KEY_USERNAME, ""));
         binding.etPassword.setText(preferences.getString(KEY_PASSWORD, ""));
-        binding.etDomain.setText(preferences.getString(KEY_DOMAIN, "116.198.199.38"));
+        binding.etDomain.setText(preferences.getString(KEY_DOMAIN, "1.14.198.98"));
         binding.etPort.setText(preferences.getString(KEY_PORT, "5060"));
-        binding.etStunServer.setText(preferences.getString(KEY_STUN_SERVER, "stun:116.198.199.38:3478"));
+        String stun = preferences.getString(KEY_STUN_SERVER, "");
+        binding.etStunServer.setText(stun == null ? "" : stun);
     }
 
     private void saveSettings(boolean finish) {
@@ -93,16 +94,18 @@ public class SipSettingsActivity extends AppCompatActivity {
         editor.putString(KEY_PASSWORD, password);
         editor.putString(KEY_DOMAIN, domain);
         editor.putString(KEY_PORT, port);
-        editor.putString(KEY_STUN_SERVER, stunServer);
-        
-        // 保存到应用设置中，让其他组件可以访问
-        SharedPreferences appSettings = getSharedPreferences("AppSettings", MODE_PRIVATE);
-        appSettings.edit().putString("stun_server", stunServer).apply();
-        
+        if (!stunServer.isEmpty()) {
+            editor.putString(KEY_STUN_SERVER, stunServer);
+            SharedPreferences appSettings = getSharedPreferences("AppSettings", MODE_PRIVATE);
+            appSettings.edit().putString("stun_server", stunServer).apply();
+        } else {
+            editor.remove(KEY_STUN_SERVER);
+            SharedPreferences appSettings = getSharedPreferences("AppSettings", MODE_PRIVATE);
+            appSettings.edit().remove("stun_server").apply();
+        }
         editor.apply();
 
         Toast.makeText(this, "SIP设置已保存", Toast.LENGTH_SHORT).show();
-        
         if (finish) {
             finish();
         }

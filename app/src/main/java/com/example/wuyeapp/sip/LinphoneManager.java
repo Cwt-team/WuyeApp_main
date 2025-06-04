@@ -23,6 +23,7 @@ import org.linphone.core.AudioDevice;
 import org.linphone.core.VideoActivationPolicy;
 
 import com.example.wuyeapp.utils.NetworkUtil;
+import com.example.wuyeapp.utils.NotificationHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -150,7 +151,17 @@ public class LinphoneManager {
                         // 来电 - 自动路由音频到听筒
                         Log.i(TAG, "收到来电，路由音频到听筒");
                         routeAudioToEarpiece();
-                        
+                        // 新增：无论前台后台都弹出系统通知
+                        try {
+                            String caller = call.getRemoteAddress().asStringUriOnly();
+                            boolean isVideo = false;
+                            if (call != null && call.getRemoteParams() != null) {
+                                isVideo = call.getRemoteParams().isVideoEnabled();
+                            }
+                            NotificationHelper.showIncomingCallNotification(appContext, caller, isVideo);
+                        } catch (Exception e) {
+                            Log.e(TAG, "来电通知弹出失败", e);
+                        }
                         if (callback != null) {
                             String caller = call.getRemoteAddress().asStringUriOnly();
                             Log.d(TAG, "来电者: " + caller);
@@ -170,6 +181,7 @@ public class LinphoneManager {
                     case Released:
                         // 通话结束
                         Log.i(TAG, "通话已结束: " + state);
+                        com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(appContext);
                         if (callback != null) {
                             callback.onCallEnded();
                         }
@@ -177,6 +189,7 @@ public class LinphoneManager {
                     case Error:
                         // 通话错误
                         Log.e(TAG, "通话错误: " + message);
+                        com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(appContext);
                         if (callback != null) {
                             callback.onCallFailed(message);
                         }
@@ -255,19 +268,19 @@ public class LinphoneManager {
             org.linphone.core.PayloadType[] videoPayloads = core.getVideoPayloadTypes();
             for (org.linphone.core.PayloadType pt : videoPayloads) {
                 String mimeType = pt.getMimeType();
-                // 支持更多视频编解码器，而不仅仅是H264
                 boolean enable = "H264".equals(mimeType) || "VP8".equals(mimeType) || "AV1".equals(mimeType);
-                Log.d(TAG, "视频编解码器: " + mimeType + " - " + (enable ? "启用" : "禁用"));
                 pt.enable(enable);
-                
                 // H264编解码器参数优化
                 if ("H264".equals(mimeType)) {
-                    pt.setRecvFmtp("profile-level-id=42801F");
+                    pt.setRecvFmtp("profile-level-id=42801F;max-br=2048000;max-mbps=108000"); // 设置高码率
                 }
-                
                 // VP8编解码器参数设置
                 if ("VP8".equals(mimeType)) {
-                    pt.setRecvFmtp("max-fs=12288;max-fr=60");
+                    pt.setRecvFmtp("max-fs=12288;max-fr=60;max-br=2048000"); // 设置高码率
+                }
+                // AV1可选
+                if ("AV1".equals(mimeType)) {
+                    pt.setRecvFmtp("max-br=2048000");
                 }
             }
             
@@ -291,7 +304,7 @@ public class LinphoneManager {
                     pt.setRecvFmtp("annexb=no");
                     pt.enable(true);    // 最高优先级
                 } else if ("opus".equalsIgnoreCase(mimeType)) {
-                    pt.setRecvFmtp("useinbandfec=1;stereo=1");
+                    pt.setRecvFmtp("useinbandfec=1;stereo=1;maxaveragebitrate=128000"); // 设置高码率
                     pt.enable(true);    // 次高优先级
                 } else if ("G722".equalsIgnoreCase(mimeType)) {
                     pt.enable(true);    // 三级优先级
@@ -304,6 +317,12 @@ public class LinphoneManager {
                 Log.d(TAG, "音频编解码器: " + mimeType + "/" + clockRate + " - " + (enable ? "启用" : "禁用"));
                 pt.enable(enable);
             }
+            
+            // 明确设置视频/音频最大最小码率
+            core.getConfig().setInt("video", "bitrate", 2048); // 单位kbps
+            core.getConfig().setInt("video", "min_bitrate", 128); // 单位kbps
+            core.getConfig().setInt("audio", "bitrate", 128); // 单位kbps
+            core.getConfig().setInt("audio", "min_bitrate", 32); // 单位kbps
             
             Log.i(TAG, "音视频编解码器配置完成，已启用更多选项");
         } catch (Exception e) {
@@ -341,55 +360,26 @@ public class LinphoneManager {
     private void configureNatAndNetwork() {
         try {
             if (core != null) {
-                // NAT穿透设置
-                core.setNatAddress(null);  // 让系统自动处理
-                
-                // 获取STUN服务器列表
-                String[] stunServers = {
-                    getStunServerAddress(),       // 主STUN服务器
-                    "stun:stun.miwifi.com:3478",  // 小米路由器STUN
-                    "stun:stun.qq.com:3478"       // 腾讯STUN
-                };
-                
-                // 尝试多个STUN服务器直到找到可用的
-                String stunServer = stunServers[0]; // 默认使用首选
-                for (String server : stunServers) {
-                    if (isStunServerReachable(server)) {
-                        stunServer = server;
-                        Log.i(TAG, "已选择可用的STUN服务器: " + stunServer);
-                        break;
-                    }
-                }
-                
-                Log.i(TAG, "使用STUN服务器: " + stunServer);
-                
-                // 启用STUN和ICE
+                core.setNatAddress(null);
+                String stunServer = getStunServerAddress();
                 org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-                natPolicy.setStunEnabled(true);
+                if (stunServer != null && !stunServer.isEmpty()) {
+                    natPolicy.setStunEnabled(true);
+                    natPolicy.setStunServer(stunServer);
+                } else {
+                    natPolicy.setStunEnabled(false);
+                    natPolicy.setStunServer("");
+                }
                 natPolicy.setIceEnabled(true);
-                natPolicy.setUpnpEnabled(true);  // 启用UPnP提高穿透成功率
-                natPolicy.setStunServer(stunServer);
+                natPolicy.setUpnpEnabled(true);
                 core.setNatPolicy(natPolicy);
-                
-                // 网络相关设置
                 core.setNetworkReachable(true);
-                
-                // 允许UDP通过NAT
                 core.getConfig().setBool("net", "enable_nat_helper", true);
-                
-                // 增加ICE候选收集时间
-                core.getConfig().setInt("net", "stun_server_timeout", 10000); // 10秒
-                
-                // 允许使用IPV6
+                core.getConfig().setInt("net", "stun_server_timeout", 10000);
                 core.getConfig().setBool("net", "ipv6_enabled", true);
-                
-                // 禁用UDP端口复用，避免某些NAT下的问题
                 core.getConfig().setBool("rtp", "disable_upnp", false);
-                
-                // 配置媒体ICE相关设置
-                core.getConfig().setBool("net", "allow_late_ice", true); // 允许后期ICE协商
-                core.getConfig().setInt("net", "ice_session_timer_value", 20); // 增加ICE会话时间
-                
+                core.getConfig().setBool("net", "allow_late_ice", true);
+                core.getConfig().setInt("net", "ice_session_timer_value", 20);
                 Log.d(TAG, "NAT和网络配置完成");
             }
         } catch (Exception e) {
@@ -431,26 +421,26 @@ public class LinphoneManager {
 
     // 获取STUN服务器地址
     private String getStunServerAddress() {
-        // 首先尝试从应用配置中获取
         SharedPreferences preferences = appContext.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
         String stunServer = preferences.getString("stun_server", null);
-        
-        // 如果未配置，则使用用户购买的中国STUN服务器
         if (stunServer == null || stunServer.isEmpty()) {
-            // 使用用户购买的中国STUN服务器，支持国内访问
-            stunServer = "stun:116.198.199.38:3478";
-            Log.i(TAG, "使用中国STUN服务器: " + stunServer);
+            return null;
         }
-        
         return stunServer;
     }
 
     // 创建NAT策略
     private org.linphone.core.NatPolicy createNatPolicy() {
         org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-        natPolicy.setStunEnabled(true);
-        natPolicy.setIceEnabled(true); 
-        natPolicy.setStunServer(getStunServerAddress()); // 使用配置的STUN服务器
+        String stunServer = getStunServerAddress();
+        if (stunServer != null && !stunServer.isEmpty()) {
+            natPolicy.setStunEnabled(true);
+            natPolicy.setStunServer(stunServer);
+        } else {
+            natPolicy.setStunEnabled(false);
+            natPolicy.setStunServer("");
+        }
+        natPolicy.setIceEnabled(true);
         return natPolicy;
     }
 
@@ -465,6 +455,10 @@ public class LinphoneManager {
                 
                 // 允许自适应比特率控制，根据网络条件调整
                 core.getConfig().setBool("net", "adaptive_rate_control", true);
+                // 更激进的自适应参数
+                core.getConfig().setInt("net", "adaptive_rate_algorithm", 2); // 2=更激进（如有支持）
+                core.getConfig().setInt("net", "adaptive_rate_control_min_bitrate", 64); // 最小64kbps
+                core.getConfig().setInt("net", "adaptive_rate_control_max_bitrate", 2048); // 最大2048kbps
                 
                 // 设置默认视频大小
                 core.setPreferredVideoDefinitionByName("720p"); // 设置为720p

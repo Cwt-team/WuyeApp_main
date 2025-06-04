@@ -1023,16 +1023,18 @@ public class LinphoneService extends Service {
     // 创建NAT策略
     private org.linphone.core.NatPolicy createNatPolicy(Core core) {
         org.linphone.core.NatPolicy natPolicy = core.createNatPolicy();
-        natPolicy.setStunEnabled(true);
+        SharedPreferences preferences = getApplicationContext().getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        String stunServer = preferences.getString("stun_server", "");
+        if (stunServer != null && !stunServer.isEmpty()) {
+            natPolicy.setStunEnabled(true);
+            natPolicy.setStunServer(stunServer);
+        } else {
+            natPolicy.setStunEnabled(false);
+            natPolicy.setStunServer("");
+        }
         natPolicy.setIceEnabled(true);
         natPolicy.setUpnpEnabled(false);
-        
-        // 从应用设置中获取STUN服务器地址
-        SharedPreferences preferences = getApplicationContext().getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
-        String stunServer = preferences.getString("stun_server", "stun:116.198.199.38:3478");
         Log.i(TAG, "使用STUN服务器: " + stunServer);
-        
-        natPolicy.setStunServer(stunServer); // 使用配置的STUN服务器
         return natPolicy;
     }
 

@@ -42,6 +42,10 @@ import java.util.concurrent.TimeUnit;
 public class CallActivity extends AppCompatActivity implements LinphoneCallback {
 
     private static final String TAG = "CallActivity";
+    private static boolean isInCallScreen = false;
+    public static boolean isInCallScreen() {
+        return isInCallScreen;
+    }
     private ActivityCallBinding binding;
     private LinphoneService linphoneService;
     private boolean isBound = false;
@@ -67,10 +71,8 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             LinphoneService.LocalBinder binder = (LinphoneService.LocalBinder) service;
             linphoneService = binder.getService();
             isBound = true;
-            
             // 设置回调
-            linphoneService.setLinphoneCallback(CallActivity.this);
-            
+            // linphoneService.setLinphoneCallback(CallActivity.this); // 注释掉，避免覆盖全局回调
             // 检查是接听来电还是拨打电话
             processIntent(getIntent());
             // 新增：如果是视频通话，绑定视频窗口
@@ -89,6 +91,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        isInCallScreen = true;
         binding = ActivityCallBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         
@@ -438,14 +441,15 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        isInCallScreen = true;
         setIntent(intent);
-        if (linphoneService != null) {
-            processIntent(intent);
-        }
+        processIntent(intent);
     }
     
     @Override
     protected void onDestroy() {
+        super.onDestroy();
+        isInCallScreen = false;
         stopCallTimer();
         
         // 取消回调
@@ -458,8 +462,6 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             unbindService(connection);
             isBound = false;
         }
-        
-        super.onDestroy();
     }
     
     // LinphoneCallback 接口实现

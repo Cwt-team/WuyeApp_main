@@ -136,8 +136,11 @@
 
         <activity
             android:name=".ui.call.CallActivity"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:exported="true" />
 
         <receiver
             android:name=".sip.SipCallReceiver"
@@ -155,14 +158,13 @@
             </intent-filter>
         </receiver>
 
-        <activity 
-            android:name=".ui.call.WakeupActivity" 
+        <activity
+            android:name=".ui.call.WakeupActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:excludeFromRecents="true"
-            android:launchMode="singleInstance"
-            android:exported="false"
-            android:noHistory="true"
-            android:showOnLockScreen="true" />
+            android:exported="true" />
 
         <activity
             android:name=".ui.profile.HouseBindingActivity"

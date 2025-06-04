@@ -371,4 +371,34 @@ public class LinphoneSipManager {
             linphoneService.toggleMute(false);
         }
     }
+
+    // 判断是否有来电
+    public boolean hasIncomingCall() {
+        if (isBound && linphoneService != null) {
+            Core core = linphoneService.getCore();
+            if (core != null) {
+                for (Call call : core.getCalls()) {
+                    if (call.getState() == Call.State.IncomingReceived) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 获取当前来电Call对象
+    public Call getCurrentIncomingCall() {
+        if (isBound && linphoneService != null) {
+            Core core = linphoneService.getCore();
+            if (core != null) {
+                for (Call call : core.getCalls()) {
+                    if (call.getState() == Call.State.IncomingReceived) {
+                        return call;
+                    }
+                }
+            }
+        }
+        return null;
+    }
 } 

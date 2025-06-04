@@ -41,6 +41,9 @@ import android.os.PowerManager;
 import android.view.WindowManager;
 import android.text.TextUtils;
 import android.graphics.Color;
+import android.app.AlertDialog;
+import android.provider.Settings;
+import android.content.SharedPreferences;
 
 public class WuyeApplication extends Application {
     private static Context context;
@@ -68,7 +71,7 @@ public class WuyeApplication extends Application {
         // 初始化Linphone Factory
         Factory.instance();
         
-        // 检查并申请通知权限
+        // 检查并申请通知权限、锁屏权限、后台弹窗权限
         checkAndRequestNotificationPermissions();
         
         // 注册Activity生命周期回调
@@ -91,9 +94,28 @@ public class WuyeApplication extends Application {
             @Override
             public void onActivityResumed(Activity activity) {
                 LogUtil.i(activity.getClass().getSimpleName() + " - onResumed");
-                // 额外确保前台状态正确
                 isAppInForeground = true;
                 Log.i(TAG, "Activity已恢复，应用在前台");
+                // 新增：检测通知渠道重要性和锁屏权限
+                checkNotificationChannelAndLockscreen(activity);
+                // 新增：如果有来电且不在来电界面，强制跳转
+                try {
+                    if (com.example.wuyeapp.sip.LinphoneSipManager.getInstance().hasIncomingCall() &&
+                        !com.example.wuyeapp.ui.call.CallActivity.isInCallScreen()) {
+                        Log.i(TAG, "检测到有来电且未在来电界面，强制跳转CallActivity");
+                        Call call = com.example.wuyeapp.sip.LinphoneSipManager.getInstance().getCurrentIncomingCall();
+                        String caller = (call != null && call.getRemoteAddress() != null) ? call.getRemoteAddress().asStringUriOnly() : "未知号码";
+                        boolean isVideo = (call != null && call.getRemoteParams() != null) ? call.getRemoteParams().isVideoEnabled() : false;
+                        Intent intent = new Intent(context, CallActivity.class);
+                        intent.setAction("ANSWER_CALL");
+                        intent.putExtra("caller", caller);
+                        intent.putExtra("isVideo", isVideo);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+                        context.startActivity(intent);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "全局检测来电并跳转CallActivity异常", e);
+                }
             }
 
             @Override
@@ -272,44 +294,32 @@ public class WuyeApplication extends Application {
     // 处理来电的方法
     private void handleIncomingCall(String caller, Call call) {
         Log.i(TAG, "处理来电: " + caller + ", 应用前台状态: " + isAppInForeground);
-        
         try {
-            // 尝试直接显示来电界面，绕过前台/后台检测机制
-            Log.d(TAG, "尝试构建直接启动来电界面的Intent");
-            Intent directCallIntent = new Intent(this, CallActivity.class);
-            directCallIntent.setAction("ANSWER_CALL");
-            directCallIntent.putExtra("caller", caller);
-            
-            // 检查是否为视频通话
-            if (call != null && call.getRemoteParams() != null) {
-                boolean isVideoCall = call.getRemoteParams().isVideoEnabled();
-                directCallIntent.putExtra("isVideo", isVideoCall);
-            }
-            
-            // 使用特殊标志强制在锁屏上显示
-            directCallIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
-                         Intent.FLAG_ACTIVITY_CLEAR_TOP | 
-                         Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-                         
-            // 先尝试直接启动CallActivity，无论前台还是后台
-            try {
-                Log.d(TAG, "尝试通过startActivity直接启动来电界面");
+            if (isAppInForeground) {
+                // 应用在前台，直接拉起来电页面，不发通知
+                Log.i(TAG, "App在前台，直接跳转CallActivity");
+                Intent directCallIntent = new Intent(this, CallActivity.class);
+                directCallIntent.setAction("ANSWER_CALL");
+                directCallIntent.putExtra("caller", caller);
+                boolean isVideoCall = false;
+                if (call != null && call.getRemoteParams() != null) {
+                    isVideoCall = call.getRemoteParams().isVideoEnabled();
+                    directCallIntent.putExtra("isVideo", isVideoCall);
+                }
+                directCallIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                             Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                             Intent.FLAG_ACTIVITY_SINGLE_TOP |
+                             Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
                 startActivity(directCallIntent);
-                Log.d(TAG, "直接启动来电界面成功");
-                return; // 如果成功启动，就不需要显示通知了
-            } catch (Exception e) {
-                Log.e(TAG, "无法直接启动来电界面，尝试使用通知: " + e.getMessage());
-                // 继续执行显示通知的代码
+            } else {
+                // 应用在后台或息屏，亮屏+发全屏通知兜底
+                Log.i(TAG, "App在后台或息屏，亮屏+发全屏通知");
+                for (int i = 0; i < 2; i++) {
+                    Log.i(TAG, "第" + (i+1) + "次调用wakeupDevice()尝试亮屏");
+                    wakeupDevice();
+                }
+                com.example.wuyeapp.utils.NotificationHelper.showIncomingCallNotification(this, caller, (call != null && call.getRemoteParams() != null) ? call.getRemoteParams().isVideoEnabled() : false);
             }
-            
-            // 唤醒屏幕以确保通知可见
-            wakeupDevice();
-            
-            // 不管应用是否在前台，都显示系统通知确保来电通知可见
-            Log.d(TAG, "尝试显示系统通知");
-            showIncomingCallNotification(caller, call);
-            Log.d(TAG, "已调用showIncomingCallNotification");
-            
         } catch (Exception e) {
             Log.e(TAG, "处理来电时出错: " + e.getMessage(), e);
         }
@@ -317,62 +327,20 @@ public class WuyeApplication extends Application {
     
     // 唤醒设备屏幕
     private void wakeupDevice() {
-        Log.i(TAG, "尝试唤醒设备屏幕");
-        
+        Log.i(TAG, "wakeupDevice()被调用，尝试唤醒设备屏幕");
         try {
-            // 1. 使用PowerManager唤醒屏幕
             PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
             PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
-                    PowerManager.FULL_WAKE_LOCK | 
-                    PowerManager.ACQUIRE_CAUSES_WAKEUP | 
-                    PowerManager.ON_AFTER_RELEASE,
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
+                    PowerManager.ACQUIRE_CAUSES_WAKEUP,
                     "WuyeApp:IncomingCallWakeLock");
-            
-            // 获取电源锁10秒
-            wakeLock.acquire(10*1000);
+            wakeLock.acquire(10*1000); // 10秒
             Log.i(TAG, "PowerManager.WakeLock获取成功，强制屏幕点亮10秒");
-            
-            // 2. 使用窗口管理器唤醒
-            WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-            if (windowManager != null) {
-                int flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
-                            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON;
-                
-                Log.i(TAG, "窗口管理器FLAG设置成功，应该能在锁屏上显示");
-            }
-            
-            // 3. 通过启动WakeupActivity尝试唤醒
-            try {
-                Intent intent = new Intent(this, WakeupActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
-                               Intent.FLAG_ACTIVITY_CLEAR_TOP | 
-                               Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-                startActivity(intent);
-                Log.i(TAG, "WakeupActivity启动成功");
-            } catch (Exception e) {
-                Log.e(TAG, "启动WakeupActivity失败: " + e.getMessage());
-            }
-            
-            // 4. MIUI特定唤醒方式
-            if (isMiuiDevice()) {
-                try {
-                    Intent intentMiui = new Intent();
-                    intentMiui.setClassName("com.android.systemui", 
-                            "com.android.systemui.keyguard.KeyguardService");
-                    intentMiui.setAction("com.android.systemui.ACTION_SHOW_KEYGUARD_TOAST");
-                    intentMiui.putExtra("message", "来电提醒");
-                    intentMiui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    
-                    if (intentMiui.resolveActivity(getPackageManager()) != null) {
-                        Log.i(TAG, "尝试使用MIUI特定方式唤醒");
-                        startActivity(intentMiui);
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "MIUI特定唤醒方式失败: " + e.getMessage());
-                }
-            }
+            // 启动WakeupActivity辅助亮屏
+            Intent intent = new Intent(this, com.example.wuyeapp.ui.call.WakeupActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+            startActivity(intent);
+            Log.i(TAG, "WakeupActivity已启动");
         } catch (Exception e) {
             Log.e(TAG, "唤醒设备屏幕时出错: " + e.getMessage(), e);
         }
@@ -707,14 +675,67 @@ public class WuyeApplication extends Application {
         }
     }
 
-    // 检查并申请通知权限
+    // 检查并申请通知权限、锁屏权限、后台弹窗权限
     private void checkAndRequestNotificationPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (!nm.areNotificationsEnabled()) {
                 Log.w(TAG, "通知权限未开启，可能影响来电提醒");
-                // 在这里可以启动一个Activity引导用户开启通知权限
+                // 引导用户开启通知权限
+                Intent intent = new Intent();
+                intent.setAction("android.settings.APP_NOTIFICATION_SETTINGS");
+                intent.putExtra("android.provider.extra.APP_PACKAGE", getPackageName());
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
             }
         }
+        // 检查锁屏显示权限（部分ROM）
+        // 检查后台弹窗/自启动权限（国产ROM）
+        // 可根据ROM类型引导用户进入设置页面
+    }
+
+    // 检查通知渠道重要性和锁屏通知权限，不达标则弹窗引导
+    private void checkNotificationChannelAndLockscreen(Activity activity) {
+        try {
+            // 新增：只弹一次
+            SharedPreferences sp = activity.getSharedPreferences("notify_guide", MODE_PRIVATE);
+            if (sp.getBoolean("notified_once", false)) return;
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel channel = nm.getNotificationChannel("call_channel");
+                if (channel != null) {
+                    if (channel.getImportance() < NotificationManager.IMPORTANCE_HIGH || channel.getLockscreenVisibility() != Notification.VISIBILITY_PUBLIC) {
+                        showNotificationChannelGuideDialog(activity, sp);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "检测通知渠道重要性失败", e);
+        }
+    }
+
+    // 弹窗引导用户设置通知渠道为重要并允许锁屏显示（只弹一次）
+    private void showNotificationChannelGuideDialog(Activity activity, SharedPreferences sp) {
+        new AlertDialog.Builder(activity)
+            .setTitle("重要提示")
+            .setMessage("为保证来电能在锁屏弹窗，请将『来电通知』渠道设置为'重要'并允许锁屏显示。点击『去设置』后，找到『来电通知』并设置为'重要'，锁屏显示为'显示所有通知内容'。")
+            .setPositiveButton("去设置", (dialog, which) -> {
+                sp.edit().putBoolean("notified_once", true).apply();
+                Intent intent = new Intent();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                } else {
+                    intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                }
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+            })
+            .setNegativeButton("取消", (dialog, which) -> {
+                sp.edit().putBoolean("notified_once", true).apply();
+            })
+            .setCancelable(true)
+            .show();
     }
 } 

@@ -49,10 +49,8 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
             LinphoneService.LocalBinder binder = (LinphoneService.LocalBinder) service;
             linphoneService = binder.getService();
             isBound = true;
-            
             // 设置回调
-            linphoneService.setLinphoneCallback(DialPadActivity.this);
-            
+            linphoneService.setLinphoneCallback(DialPadActivity.this); // 注释掉，避免覆盖全局回调
             // 检查注册状态
             checkRegistrationStatus();
         }
