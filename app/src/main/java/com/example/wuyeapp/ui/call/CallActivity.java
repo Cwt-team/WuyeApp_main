@@ -328,6 +328,20 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 showVideoLayout(false);
             }
         }
+        // 新增：根据当前通话状态自动同步UI，防止通知栏接听后UI异常
+        if (linphoneService != null) {
+            Core core = linphoneService.getCore();
+            if (core != null) {
+                Call currentCall = core.getCurrentCall();
+                if (currentCall != null && currentCall.getState() == Call.State.StreamsRunning) {
+                    // 已经在通话中，直接显示通话中UI
+                    showCallControls();
+                    if (isVideoEnabled) {
+                        setupVideoSurfaces();
+                    }
+                }
+            }
+        }
     }
     
     // 显示或隐藏视频布局
