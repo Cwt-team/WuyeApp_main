@@ -18,6 +18,7 @@ import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Toast;
+import android.widget.ImageButton;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -29,6 +30,7 @@ import com.example.wuyeapp.databinding.ActivityCallBinding;
 import com.example.wuyeapp.sip.LinphoneSipManager;
 import com.example.wuyeapp.sip.LinphoneService;
 import com.example.wuyeapp.sip.LinphoneCallback;
+import com.example.wuyeapp.ui.call.FloatCallService;
 
 import org.linphone.core.Call;
 import org.linphone.core.CallParams;
@@ -139,6 +141,24 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
         
         // 检查相机权限
         checkCameraPermission();
+        
+        // 添加最小化按钮逻辑
+        ImageButton btnMinimize = new ImageButton(this);
+        btnMinimize.setImageResource(R.drawable.ic_call);
+        btnMinimize.setBackgroundColor(0x00000000);
+        btnMinimize.setOnClickListener(v -> {
+            if (!FloatCallService.canDrawOverlays(this)) {
+                Intent permissionIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                startActivity(permissionIntent);
+                Toast.makeText(this, "请授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent service = new Intent(this, FloatCallService.class);
+            startService(service);
+            moveTaskToBack(true);
+        });
+        // 将按钮添加到布局（如右上角）
+        binding.getRoot().addView(btnMinimize);
     }
     
     private void setupButtonListeners() {
@@ -150,6 +170,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             } else {
                 Log.e(TAG, "linphoneService为空，无法挂断");
             }
+            showFloatBallIfPermitted();
             finish();
         });
         
@@ -180,6 +201,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             } else {
                 Log.e(TAG, "linphoneService为空，无法拒绝");
             }
+            showFloatBallIfPermitted();
             finish();
         });
         
@@ -483,6 +505,8 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             unbindService(connection);
             isBound = false;
         }
+        // 兜底：如果不是主动挂断/拒接/返回，onDestroy时也弹出悬浮球
+        showFloatBallIfPermitted();
     }
     
     // LinphoneCallback 接口实现
@@ -755,6 +779,29 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             Intent intent = getIntent();
             finish();
             startActivity(intent);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        // 返回时自动弹出悬浮球，但不最小化App
+        showFloatBallIfPermitted();
+        super.onBackPressed();
+    }
+
+    // 公共方法：有权限时弹出悬浮球
+    private void showFloatBallIfPermitted() {
+        if (FloatCallService.canDrawOverlays(this)) {
+            Intent service = new Intent(this, FloatCallService.class);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(service);
+            } else {
+                startService(service);
+            }
+        } else {
+            Toast.makeText(this, "请授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+            Intent permissionIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+            startActivity(permissionIntent);
         }
     }
 }
