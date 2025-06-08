@@ -126,13 +126,11 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             } else if ("ANSWER_CALL".equals(action)) {
                 String caller = getIntent().getStringExtra("caller");
                 isVideoCall = getIntent().getBooleanExtra("isVideo", false);
-                isVideoEnabled = isVideoCall;
+                isVideoEnabled = false; // 这里不要直接设为true
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(caller);
-                // 来电时显示接听/拒接按钮，隐藏开门按钮
                 showOnlyAnswerRejectButtons();
-                // 默认先隐藏视频布局
-                showVideoLayout(false);
+                showVideoLayout(false); // 默认隐藏视频布局
             }
         }
         
@@ -160,8 +158,15 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             if (linphoneService != null) {
                 linphoneService.answerCall(isVideoCall);
                 Toast.makeText(this, "已接听", Toast.LENGTH_SHORT).show();
-                // 接听后隐藏接听/拒接按钮，显示开门按钮
+                // 接听后显示通话控制区
                 showCallControls();
+                // 如果是视频通话，初始化视频布局和表面
+                if (isVideoCall) {
+                    isVideoEnabled = true;
+                    showVideoLayout(true);
+                    setupVideoSurfaces();
+                    binding.btnSwitchCamera.setVisibility(View.VISIBLE);
+                }
             } else {
                 Log.e(TAG, "linphoneService为空，无法接听");
             }
@@ -319,13 +324,10 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 binding.tvCallState.setText("来电...");
                 binding.tvCallerId.setText(intent.getStringExtra("caller"));
                 isVideoCall = intent.getBooleanExtra("isVideo", false);
-                isVideoEnabled = isVideoCall;
+                isVideoEnabled = false; // 这里不要直接设为true
                 // 只显示接听/拒接按钮
                 showOnlyAnswerRejectButtons();
-                // 确保音频设备已初始化
-                ensureAudioDevicesReady();
-                // 不再自动接听，而是等待用户点击接听按钮
-                showVideoLayout(false);
+                showVideoLayout(false); // 默认隐藏视频布局
             }
         }
         // 新增：根据当前通话状态自动同步UI，防止通知栏接听后UI异常
