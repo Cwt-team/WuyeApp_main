@@ -19,6 +19,11 @@ public class NotificationHelper {
     private static final int NOTIFY_ID = 1001;
 
     public static void showIncomingCallNotification(Context context, String caller, boolean isVideo) {
+        // 防止重复弹出通话界面
+        if (com.example.wuyeapp.ui.call.CallActivity.isInCallScreen()) {
+            android.util.Log.i("NotificationHelper", "已在通话界面，忽略来电通知弹窗");
+            return;
+        }
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         // 创建通知渠道（Android 8.0+）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -34,6 +39,10 @@ public class NotificationHelper {
         intent.putExtra("caller", caller);
         intent.putExtra("isVideo", isVideo);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+        // 新增：如果已在通话界面，添加bringToFront标记
+        if (com.example.wuyeapp.ui.call.CallActivity.isInCallScreen()) {
+            intent.putExtra("bringToFront", true);
+        }
         PendingIntent pi = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_call)
@@ -54,6 +63,6 @@ public class NotificationHelper {
     }
     public static void cancelIncomingCallNotification(Context context) {
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        nm.cancel(NOTIFY_ID);
+        nm.cancel(100); // 100为来电通知ID
     }
 } 

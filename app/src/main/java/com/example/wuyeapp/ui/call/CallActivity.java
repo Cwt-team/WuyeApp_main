@@ -271,6 +271,12 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     
     private void processIntent(Intent intent) {
         if (intent != null) {
+            // 新增：如果是通知栏点击且已在通话界面，直接bringToFront
+            if (intent.getBooleanExtra("bringToFront", false)) {
+                // 如果Activity已在栈顶，什么都不做；否则bringToFront
+                moveTaskToFront();
+                return;
+            }
             String action = intent.getAction();
             if ("MAKE_CALL".equals(action)) {
                 // 拨打电话
@@ -328,11 +334,10 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     private void showVideoLayout(boolean show) {
         if (show) {
             binding.remoteVideoLayout.setVisibility(View.VISIBLE);
-            // 视频通话时也显示号码和状态等信息（只隐藏通话时的按钮区）
+            // 视频通话时也显示号码和状态等信息（只隐藏来电接听/拒接按钮）
             binding.audioCallLayout.setVisibility(View.VISIBLE);
-            // 只隐藏音频相关的按钮区（如有需要可细化）
             binding.incomingCallButtons.setVisibility(View.GONE);
-            binding.callControlsLayout.setVisibility(View.GONE);
+            binding.callControlsLayout.setVisibility(View.VISIBLE);
         } else {
             binding.remoteVideoLayout.setVisibility(View.GONE);
             binding.audioCallLayout.setVisibility(View.VISIBLE);
@@ -517,12 +522,16 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 setupVideoSurfaces();
             }
             startCallTimer();
+            // 新增：通话建立时移除来电通知
+            com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(this);
         });
     }
     
     @Override
     public void onCallEnded() {
         runOnUiThread(() -> {
+            // 新增：通话结束时移除来电通知
+            com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(this);
             Toast.makeText(CallActivity.this, "通话已结束", Toast.LENGTH_SHORT).show();
             finish();
         });
@@ -531,8 +540,10 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
     @Override
     public void onCallFailed(String reason) {
         runOnUiThread(() -> {
-            Toast.makeText(CallActivity.this, "通话失败: " + reason, Toast.LENGTH_SHORT).show();
-            finish();
+            // 新增：通话失败时移除来电通知
+            com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(this);
+            Toast.makeText(this, "通话失败: " + reason, Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "通话失败: " + reason);
         });
     }
     
@@ -698,6 +709,36 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             binding.btnSwitchCamera.setVisibility(View.VISIBLE);
         } else {
             binding.btnSwitchCamera.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 让当前Activity接收Linphone回调，保证UI状态及时更新
+        com.example.wuyeapp.sip.LinphoneSipManager.getInstance().setLinphoneCallback(this);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 恢复全局回调，避免被覆盖（假设Application有setupGlobalCallHandler方法）
+        if (getApplication() instanceof com.example.wuyeapp.app.WuyeApplication) {
+            ((com.example.wuyeapp.app.WuyeApplication) getApplication()).setupGlobalCallHandler();
+        }
+    }
+
+    // 新增：bringToFront实现
+    private void moveTaskToFront() {
+        try {
+            // 仅适用于API 21+
+            moveTaskToBack(false); // 先到后台
+            moveTaskToFront(); // 再到前台（部分ROM支持）
+        } catch (Exception e) {
+            // 兼容处理：直接finish再重启
+            Intent intent = getIntent();
+            finish();
+            startActivity(intent);
         }
     }
 }

@@ -35,6 +35,12 @@ public class SipCallReceiver extends BroadcastReceiver {
             // 显示来电通知
             showIncomingCallNotification(context, caller);
             
+            // 防止重复弹出通话界面
+            if (com.example.wuyeapp.ui.call.CallActivity.isInCallScreen()) {
+                Log.i(TAG, "已在通话界面，忽略重复弹窗");
+                return;
+            }
+            
             // 直接启动来电界面，添加标志以确保从任何界面都能正常启动
             Intent callIntent = new Intent(context, CallActivity.class);
             callIntent.setAction("ANSWER_CALL");

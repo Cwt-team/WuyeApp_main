@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -45,6 +47,11 @@ public class LinphoneManager {
     private LinphoneCallback callback;
     
     private Context appContext;
+    
+    // 来电自动挂断定时器相关
+    private Handler incomingCallTimeoutHandler = new Handler(Looper.getMainLooper());
+    private Runnable incomingCallTimeoutRunnable;
+    private Call currentIncomingCallForTimeout;
     
     // 私有构造函数，确保单例
     private LinphoneManager(Context context) {
@@ -167,6 +174,18 @@ public class LinphoneManager {
                             Log.d(TAG, "来电者: " + caller);
                             callback.onIncomingCall(call, caller);
                         }
+                        // 启动来电超时自动挂断定时器（45秒）
+                        if (incomingCallTimeoutRunnable != null) {
+                            incomingCallTimeoutHandler.removeCallbacks(incomingCallTimeoutRunnable);
+                        }
+                        currentIncomingCallForTimeout = call;
+                        incomingCallTimeoutRunnable = () -> {
+                            if (call.getState() == Call.State.IncomingReceived) {
+                                Log.i(TAG, "来电45秒未接听，自动挂断");
+                                call.terminate();
+                            }
+                        };
+                        incomingCallTimeoutHandler.postDelayed(incomingCallTimeoutRunnable, 45000);
                         break;
                     case StreamsRunning:
                         // 通话中 - 根据是否为视频通话决定路由
@@ -185,6 +204,12 @@ public class LinphoneManager {
                         if (callback != null) {
                             callback.onCallEnded();
                         }
+                        // 通话已接听或结束，移除来电超时定时器
+                        if (incomingCallTimeoutRunnable != null) {
+                            incomingCallTimeoutHandler.removeCallbacks(incomingCallTimeoutRunnable);
+                            incomingCallTimeoutRunnable = null;
+                            currentIncomingCallForTimeout = null;
+                        }
                         break;
                     case Error:
                         // 通话错误
@@ -192,6 +217,12 @@ public class LinphoneManager {
                         com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(appContext);
                         if (callback != null) {
                             callback.onCallFailed(message);
+                        }
+                        // 通话已接听或结束，移除来电超时定时器
+                        if (incomingCallTimeoutRunnable != null) {
+                            incomingCallTimeoutHandler.removeCallbacks(incomingCallTimeoutRunnable);
+                            incomingCallTimeoutRunnable = null;
+                            currentIncomingCallForTimeout = null;
                         }
                         break;
                     default:

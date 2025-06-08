@@ -250,7 +250,7 @@ public class WuyeApplication extends Application {
     }
     
     // 设置全局来电处理
-    private void setupGlobalCallHandler() {
+    public void setupGlobalCallHandler() {
         LinphoneSipManager.getInstance().setLinphoneCallback(new LinphoneCallback() {
             @Override
             public void onRegistrationSuccess() {
@@ -298,6 +298,11 @@ public class WuyeApplication extends Application {
             if (isAppInForeground) {
                 // 应用在前台，直接拉起来电页面，不发通知
                 Log.i(TAG, "App在前台，直接跳转CallActivity");
+                // 防止重复弹出通话界面
+                if (com.example.wuyeapp.ui.call.CallActivity.isInCallScreen()) {
+                    Log.i(TAG, "已在通话界面，忽略重复弹窗");
+                    return;
+                }
                 Intent directCallIntent = new Intent(this, CallActivity.class);
                 directCallIntent.setAction("ANSWER_CALL");
                 directCallIntent.putExtra("caller", caller);

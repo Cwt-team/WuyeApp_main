@@ -50,7 +50,7 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
             linphoneService = binder.getService();
             isBound = true;
             // 设置回调
-            linphoneService.setLinphoneCallback(DialPadActivity.this); // 注释掉，避免覆盖全局回调
+            // linphoneService.setLinphoneCallback(DialPadActivity.this); // 注释掉，避免覆盖全局回调
             // 检查注册状态
             checkRegistrationStatus();
         }
@@ -314,6 +314,11 @@ public class DialPadActivity extends AppCompatActivity implements LinphoneCallba
     @Override
     public void onIncomingCall(Call call, String caller) {
         runOnUiThread(() -> {
+            // 修复：防止重复弹出来电界面
+            if (com.example.wuyeapp.ui.call.CallActivity.isInCallScreen()) {
+                Log.d(TAG, "已在通话界面，忽略重复来电弹窗");
+                return;
+            }
             // 显示来电界面
             Intent intent = new Intent(this, CallActivity.class);
             intent.setAction("ANSWER_CALL");
