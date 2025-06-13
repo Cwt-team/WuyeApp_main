@@ -352,15 +352,23 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
                 showVideoLayout(false); // 默认隐藏视频布局
             }
         }
-        // 新增：根据当前通话状态自动同步UI，防止通知栏接听后UI异常
+        // 新增：根据当前通话状态自动同步UI，防止回到通话界面后视频丢失
         if (linphoneService != null) {
             Core core = linphoneService.getCore();
             if (core != null) {
                 Call currentCall = core.getCurrentCall();
                 if (currentCall != null && currentCall.getState() == Call.State.StreamsRunning) {
-                    // 已经在通话中，直接显示通话中UI
+                    boolean hasVideo = currentCall.getCurrentParams().isVideoEnabled();
+                    isVideoEnabled = hasVideo;
+                    // 新增：用当前通话对象号码刷新UI
+                    String displayNumber = "";
+                    if (currentCall.getRemoteAddress() != null) {
+                        displayNumber = currentCall.getRemoteAddress().getUsername();
+                    }
+                    binding.tvCallerId.setText(displayNumber);
                     showCallControls();
-                    if (isVideoEnabled) {
+                    showVideoLayout(hasVideo);
+                    if (hasVideo) {
                         setupVideoSurfaces();
                     }
                 }
@@ -573,6 +581,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             // 新增：通话结束时移除来电通知
             com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(this);
             Toast.makeText(CallActivity.this, "通话已结束", Toast.LENGTH_SHORT).show();
+            stopFloatCallService(); // 新增，结束悬浮窗服务
             finish();
         });
     }
@@ -584,6 +593,7 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             com.example.wuyeapp.utils.NotificationHelper.cancelIncomingCallNotification(this);
             Toast.makeText(this, "通话失败: " + reason, Toast.LENGTH_SHORT).show();
             Log.e(TAG, "通话失败: " + reason);
+            stopFloatCallService(); // 新增，结束悬浮窗服务
         });
     }
     
@@ -802,6 +812,28 @@ public class CallActivity extends AppCompatActivity implements LinphoneCallback 
             Toast.makeText(this, "请授予悬浮窗权限", Toast.LENGTH_SHORT).show();
             Intent permissionIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
             startActivity(permissionIntent);
+        }
+    }
+
+    // 新增：结束悬浮窗服务
+    private void stopFloatCallService() {
+        try {
+            Intent stopIntent = new Intent(this, FloatCallService.class);
+            stopService(stopIntent);
+        } catch (Exception e) {
+            Log.e(TAG, "关闭悬浮窗服务失败", e);
+        }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        // 只有通话未结束时才弹出悬浮窗
+        if (linphoneService != null && linphoneService.getCore() != null) {
+            org.linphone.core.Call call = linphoneService.getCore().getCurrentCall();
+            if (call != null && call.getState() == org.linphone.core.Call.State.StreamsRunning) {
+                showFloatBallIfPermitted();
+            }
         }
     }
 }

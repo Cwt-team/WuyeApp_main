@@ -1,5 +1,8 @@
 package com.example.wuyeapp.ui.call;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -8,6 +11,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -17,7 +21,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
 import com.example.wuyeapp.R;
 import com.example.wuyeapp.sip.LinphoneSipManager;
@@ -36,11 +40,25 @@ public class FloatCallService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.i("FloatCallService", "onCreate: 悬浮球服务启动");
+        // 前台服务通知
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("float_call", "通话悬浮球", NotificationManager.IMPORTANCE_LOW);
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            manager.createNotificationChannel(channel);
+            Notification notification = new NotificationCompat.Builder(this, "float_call")
+                    .setContentTitle("通话悬浮球")
+                    .setContentText("通话进行中")
+                    .setSmallIcon(R.drawable.ic_call)
+                    .build();
+            startForeground(1001, notification);
+        }
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         addFloatView();
     }
 
     private void addFloatView() {
+        Log.i("FloatCallService", "addFloatView: 尝试添加悬浮球");
         if (floatView != null) return;
         params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -49,9 +67,8 @@ public class FloatCallService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.END;
-        params.x = 30;
+        params.x = 100;
         params.y = 300;
-
         floatView = LayoutInflater.from(this).inflate(R.layout.float_call_ball, null);
         tvDuration = floatView.findViewById(R.id.tv_float_call_duration);
         ImageButton btnHangup = floatView.findViewById(R.id.btn_float_hangup);
@@ -106,7 +123,12 @@ public class FloatCallService extends Service {
                 return false;
             }
         });
-        windowManager.addView(floatView, params);
+        try {
+            windowManager.addView(floatView, params);
+            Log.i("FloatCallService", "addFloatView: 悬浮球已添加到WindowManager");
+        } catch (Exception e) {
+            Log.e("FloatCallService", "addFloatView: 悬浮球添加失败", e);
+        }
         // 启动计时器
         callStartTime = System.currentTimeMillis();
         timerRunnable = new Runnable() {
@@ -132,7 +154,6 @@ public class FloatCallService extends Service {
         timerHandler.removeCallbacksAndMessages(null);
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return null;

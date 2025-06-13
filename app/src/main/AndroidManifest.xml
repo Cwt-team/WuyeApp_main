@@ -172,5 +172,11 @@
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
         <activity android:name=".ui.profile.ApplicationListActivity" />
+
+        <service
+            android:name=".ui.call.FloatCallService"
+            android:exported="false"
+            android:enabled="true"
+            android:foregroundServiceType="mediaProjection|phoneCall" />
     </application>
 </manifest>
