@@ -178,5 +178,13 @@
             android:exported="false"
             android:enabled="true"
             android:foregroundServiceType="mediaProjection|phoneCall" />
+
+        <activity android:name=".ui.shop.ShopActivity" />
+
+        <activity android:name=".ui.shop.ShopManagerActivity" />
+
+        <activity android:name=".ui.shop.ProductDetailActivity" />
+
+        <activity android:name=".ui.shop.OrderListActivity" />
     </application>
 </manifest>

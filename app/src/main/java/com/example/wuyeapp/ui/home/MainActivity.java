@@ -50,6 +50,7 @@ import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import com.example.wuyeapp.model.user.OwnerInfo;
 import com.example.wuyeapp.ui.auth.LoginActivity;
+import com.example.wuyeapp.ui.shop.ShopActivity;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -121,6 +122,12 @@ public class MainActivity extends AppCompatActivity {
 
         binding.navHome.setOnClickListener(v -> {
             // 已经在首页,无需处理
+        });
+
+        binding.navShop.setOnClickListener(v -> {
+            // 跳转到购物商城页面
+            Intent intent = new Intent(this, ShopActivity.class);
+            startActivity(intent);
         });
 
         binding.navUnlock.setOnClickListener(v -> {
