@@ -6,16 +6,18 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
+import retrofit2.http.Query;
+import com.example.wuyeapp.model.shop.ShopListResponse;
 
 public interface ShopApiService {
 
     /**
      * 获取所有商铺列表
      * GET /api/shop/
-     * @return 包含所有商铺的列表
+     * @return 包含所有商铺的列表（现在返回ShopListResponse对象）
      */
     @GET("/api/shop/")
-    Call<List<Shop>> getAllShops();
+    Call<ShopListResponse> getAllShops();
 
     /**
      * 获取单个商铺的详细信息
@@ -25,6 +27,16 @@ public interface ShopApiService {
      */
     @GET("/api/shop/{shop_id}")
     Call<Shop> getShopDetails(@Path("shop_id") int shopId);
+
+    /**
+     * 获取指定商铺的所有商品列表 (通过Query参数 shop_id)
+     * GET /api/product/?shop_id={商铺ID}
+     * 这是根据用户提供的网页端接口调整的。
+     * @param shopId 商铺的ID
+     * @return 包含指定商铺所有商品的列表
+     */
+    @GET("/api/product/")
+    Call<List<Product>> getProductsByShopIdWithQuery(@Query("shop_id") int shopId);
 
     // 假设后端也有获取某个商铺下所有商品的接口
     /**

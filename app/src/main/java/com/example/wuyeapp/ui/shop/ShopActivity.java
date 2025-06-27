@@ -26,6 +26,9 @@ import com.example.wuyeapp.network.client.RetrofitClient;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import android.util.Log;
+import com.example.wuyeapp.utils.LogUtil;
+import com.example.wuyeapp.model.shop.ShopListResponse;
 
 public class ShopActivity extends AppCompatActivity {
     private String currentShopName = "默认商铺";
@@ -99,11 +102,11 @@ public class ShopActivity extends AppCompatActivity {
         categoryListLayout.removeAllViews();
         for (String cat : categories) {
             Button btn = new Button(this);
-            btn.setText(cat);
+            btn.setText(cat != null ? cat : "未知分类");
             btn.setAllCaps(false);
             GradientDrawable bg = new GradientDrawable();
             bg.setCornerRadius(32);
-            if (cat.equals(currentCategory)) {
+            if (cat != null && cat.equals(currentCategory)) {
                 bg.setColor(0xFF009688);
                 btn.setTextColor(0xFFFFFFFF);
             } else {
@@ -114,7 +117,7 @@ public class ShopActivity extends AppCompatActivity {
             btn.setTextSize(16);
             btn.setPadding(0, 24, 0, 24);
             btn.setOnClickListener(v -> {
-                currentCategory = cat;
+                currentCategory = (cat != null) ? cat : "全部";
                 updateCategoryList();
                 updateProductList();
             });
@@ -128,7 +131,8 @@ public class ShopActivity extends AppCompatActivity {
     private void updateProductList() {
         productListLayout.removeAllViews();
         for (Product p : allProducts) {
-            if ((!currentCategory.equals("全部") && !p.getCategory().equals(currentCategory)) || (currentShopId != -1 && p.getShopId() != currentShopId)) continue;
+            String productCategoryIdString = String.valueOf(p.getCategoryId());
+            if ((!currentCategory.equals("全部") && !productCategoryIdString.equals(currentCategory)) || (currentShopId != -1 && p.getShopId() != currentShopId)) continue;
             LinearLayout card = new LinearLayout(this);
             card.setOrientation(LinearLayout.HORIZONTAL);
             card.setPadding(24, 24, 24, 24);
@@ -221,7 +225,7 @@ public class ShopActivity extends AppCompatActivity {
         intent.putExtra("productName", p.getName());
         intent.putExtra("productShopId", p.getShopId());
         intent.putExtra("productPrice", p.getPrice());
-        intent.putExtra("productCategory", p.getCategory());
+        intent.putExtra("productCategoryId", p.getCategoryId());
         intent.putExtra("productImageUrl", p.getImageUrl());
         intent.putExtra("productDescription", p.getDescription());
         startActivity(intent);
@@ -230,51 +234,80 @@ public class ShopActivity extends AppCompatActivity {
     private void fetchShopsAndProducts() {
         Toast.makeText(this, "正在加载商铺和商品信息...", Toast.LENGTH_SHORT).show();
 
-        shopApiService.getAllShops().enqueue(new Callback<List<Shop>>() {
+        shopApiService.getAllShops().enqueue(new Callback<ShopListResponse>() {
             @Override
-            public void onResponse(Call<List<Shop>> call, Response<List<Shop>> response) {
+            public void onResponse(Call<ShopListResponse> call, Response<ShopListResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    shops = response.body();
+                    ShopListResponse shopListResponse = response.body();
+                    shops = shopListResponse.getItems();
+
                     if (!shops.isEmpty()) {
                         currentShopId = shops.get(0).getId();
                         currentShopName = shops.get(0).getName();
                         shopTitle.setText("当前商铺：" + currentShopName);
+                        fetchProducts();
                     } else {
                         Toast.makeText(ShopActivity.this, "没有商铺信息。", Toast.LENGTH_SHORT).show();
+                        LogUtil.w("获取到商铺列表但为空。");
+                        updateProductList();
                     }
-                    fetchProducts();
                 } else {
                     Toast.makeText(ShopActivity.this, "获取商铺列表失败：" + response.code(), Toast.LENGTH_SHORT).show();
-                    fetchProducts();
+                    LogUtil.e("获取商铺列表失败，HTTP状态码: " + response.code() + ", 错误信息: " + response.message());
+                    allProducts.clear();
+                    updateProductList();
                 }
             }
 
             @Override
-            public void onFailure(Call<List<Shop>> call, Throwable t) {
-                Toast.makeText(ShopActivity.this, "网络请求失败，无法获取商铺列表：" + t.getMessage(), Toast.LENGTH_LONG).show();
-                fetchProducts();
+            public void onFailure(Call<ShopListResponse> call, Throwable t) {
+                Toast.makeText(ShopActivity.this, "网络连接或服务器错误：商铺", Toast.LENGTH_SHORT).show();
+                LogUtil.e("获取商铺列表请求失败：", t);
+                allProducts.clear();
+                updateProductList();
             }
         });
     }
 
     private void fetchProducts() {
-        shopApiService.getAllProducts().enqueue(new Callback<List<Product>>() {
+        if (currentShopId == -1) {
+            LogUtil.w("没有有效的商铺ID，无法获取商品列表。");
+            allProducts.clear();
+            updateProductList();
+            Toast.makeText(this, "没有选择商铺，无法加载商品。", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        LogUtil.i("正在获取商铺 (ID: " + currentShopId + ") 的商品信息...");
+
+        shopApiService.getProductsByShopIdWithQuery(currentShopId).enqueue(new Callback<List<Product>>() {
             @Override
             public void onResponse(Call<List<Product>> call, Response<List<Product>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     allProducts = response.body();
+                    LogUtil.i("成功获取到商品列表，数量: " + allProducts.size());
+
                     extractCategoriesFromProducts(allProducts);
                     updateCategoryList();
                     updateProductList();
-                    Toast.makeText(ShopActivity.this, "商铺和商品信息加载完成。", Toast.LENGTH_SHORT).show();
+                    if (allProducts.isEmpty()) {
+                        Toast.makeText(ShopActivity.this, "该商铺没有商品信息。", Toast.LENGTH_SHORT).show();
+                        LogUtil.w("该商铺 (ID: " + currentShopId + ") 没有商品信息。");
+                    }
                 } else {
                     Toast.makeText(ShopActivity.this, "获取商品列表失败：" + response.code(), Toast.LENGTH_SHORT).show();
+                    LogUtil.e("获取商品列表失败，HTTP状态码: " + response.code() + ", 错误信息: " + response.message());
+                    allProducts.clear();
+                    updateProductList();
                 }
             }
 
             @Override
             public void onFailure(Call<List<Product>> call, Throwable t) {
-                Toast.makeText(ShopActivity.this, "网络请求失败，无法获取商品列表：" + t.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(ShopActivity.this, "网络连接或服务器错误：商品", Toast.LENGTH_SHORT).show();
+                LogUtil.e("获取商品列表请求失败：", t);
+                allProducts.clear();
+                updateProductList();
             }
         });
     }
@@ -282,9 +315,12 @@ public class ShopActivity extends AppCompatActivity {
     private void extractCategoriesFromProducts(List<Product> products) {
         categories.clear();
         categories.add("全部");
-        for (Product p : products) {
-            if (!categories.contains(p.getCategory())) {
-                categories.add(p.getCategory());
+        for (Product product : products) {
+            String categoryIdString = String.valueOf(product.getCategoryId());
+            if (categoryIdString != null && !categoryIdString.trim().isEmpty()) {
+                if (!categories.contains(categoryIdString)) {
+                    categories.add(categoryIdString);
+                }
             }
         }
     }

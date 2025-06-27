@@ -7,23 +7,27 @@ public class Product {
     private int id;
     @SerializedName("name")
     private String name;
-    @SerializedName("shopId")
+    @SerializedName("shop_id")
     private int shopId; // 所属商铺的ID
     @SerializedName("price")
     private double price;
-    @SerializedName("category")
-    private String category;
-    @SerializedName("imageUrl")
+    @SerializedName("category_id")
+    private int categoryId; // 商品分类的ID (现在是int类型)
+    @SerializedName("image_url")
     private String imageUrl; // 商品图片URL
     @SerializedName("description")
     private String description; // 商品描述
+    @SerializedName("stock")
+    private int stock;
+    @SerializedName("status")
+    private int status;
 
     public Product(int id, String name, int shopId, double price, String category, String imageUrl, String description) {
         this.id = id;
         this.name = name;
         this.shopId = shopId;
         this.price = price;
-        this.category = category;
+        this.categoryId = Integer.parseInt(category);
         this.imageUrl = imageUrl;
         this.description = description;
     }
@@ -45,8 +49,8 @@ public class Product {
         return price;
     }
 
-    public String getCategory() {
-        return category;
+    public int getCategoryId() {
+        return categoryId;
     }
 
     public String getImageUrl() {
@@ -55,6 +59,14 @@ public class Product {
 
     public String getDescription() {
         return description;
+    }
+
+    public int getStock() {
+        return stock;
+    }
+
+    public int getStatus() {
+        return status;
     }
 
     // Setters (如果需要修改数据则添加，否则可省略)
@@ -74,8 +86,8 @@ public class Product {
         this.price = price;
     }
 
-    public void setCategory(String category) {
-        this.category = category;
+    public void setCategoryId(int categoryId) {
+        this.categoryId = categoryId;
     }
 
     public void setImageUrl(String imageUrl) {
@@ -84,5 +96,13 @@ public class Product {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public void setStock(int stock) {
+        this.stock = stock;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
     }
 }
