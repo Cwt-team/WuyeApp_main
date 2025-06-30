@@ -1,5 +1,6 @@
 package com.example.wuyeapp.network.api;
 
+import com.example.wuyeapp.model.user.LoginRequest;
 import com.example.wuyeapp.model.user.LoginResponse;
 import com.example.wuyeapp.model.user.OwnerInfo;
 import com.example.wuyeapp.model.user.OwnerDetailResponse;
@@ -35,7 +36,7 @@ public interface ApiService {
     @FormUrlEncoded
     @POST("api/mobile/login")
     Call<LoginResponse> login(
-            @Field("username") String username, // 账号或手机号
+            @Field("username") String username,  // 改为username以匹配后端
             @Field("password") String password
     );
     
@@ -54,7 +55,7 @@ public interface ApiService {
     Call<OwnerInfo> getOwnerByPhone(@Path("phone") String phone);
     
     // 测试连接API
-    @GET("api/ping")
+    @GET("api/test")
     Call<Void> testConnection();
 
     // 获取业主详细信息
@@ -143,4 +144,7 @@ public interface ApiService {
     // 获取单元下所有房间
     @GET("api/mobile/rooms")
     Call<RoomListResponse> getRooms(@Query("unitId") int unitId);
+
+    @POST("api/mobile/login")
+    Call<LoginResponse> login(@Body LoginRequest loginRequest);
 }

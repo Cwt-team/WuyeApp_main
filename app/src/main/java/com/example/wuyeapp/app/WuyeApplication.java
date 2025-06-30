@@ -151,13 +151,10 @@ public class WuyeApplication extends Application {
         createIncomingCallNotificationChannel();
         
         // 初始化LinphoneSipManager
-        LinphoneSipManager.getInstance().init(this);
+        // LinphoneSipManager.getInstance().init(this); 
         
         // 设置全局来电回调
         setupGlobalCallHandler();
-        
-        // 启动LinphoneService前台服务
-        startLinphoneService();
         
         // 如果是小米设备，提示用户设置权限
         if (isMiuiDevice()) {
@@ -630,16 +627,6 @@ public class WuyeApplication extends Application {
             Log.e(TAG, "获取系统属性失败: " + e.getMessage());
             return defaultValue;
         }
-    }
-
-    private void startLinphoneService() {
-        Intent serviceIntent = new Intent(this, LinphoneService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
-        Log.i(TAG, "启动LinphoneService前台服务，确保后台接听来电");
     }
 
     @Override

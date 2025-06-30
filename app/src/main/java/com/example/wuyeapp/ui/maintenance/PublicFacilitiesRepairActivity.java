@@ -37,8 +37,13 @@ public class PublicFacilitiesRepairActivity extends AppCompatActivity {
         OwnerInfo owner = SessionManager.getInstance(this).getOwnerInfo();
         if (owner != null) {
             binding.contactNameInput.setText(owner.getName());
-            binding.contactPhoneInput.setText(owner.getPhoneNumber());
-            selectedCommunityId = owner.getCommunityId();
+            binding.contactPhoneInput.setText(owner.getPhone());
+            try {
+                selectedCommunityId = Integer.parseInt(owner.getCommunityId());
+            } catch (NumberFormatException e) {
+                selectedCommunityId = -1;
+                Log.e(TAG, "无效的社区ID格式: " + owner.getCommunityId());
+            }
             
             // 设置社区名称
             if (selectedCommunityId > 0) {

@@ -31,6 +31,7 @@
     <uses-permission android:name="android.permission.BROADCAST_PACKAGE_CHANGED" />
     <uses-permission android:name="android.permission.BROADCAST_PACKAGE_REPLACED" />
     <uses-permission android:name="android.permission.GET_TASKS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
         android:name=".app.WuyeApplication"
@@ -173,11 +174,7 @@
 
         <activity android:name=".ui.profile.ApplicationListActivity" />
 
-        <service
-            android:name=".ui.call.FloatCallService"
-            android:exported="false"
-            android:enabled="true"
-            android:foregroundServiceType="mediaProjection|phoneCall" />
+
 
         <activity android:name=".ui.shop.ShopActivity" />
 
@@ -186,5 +183,11 @@
         <activity android:name=".ui.shop.ProductDetailActivity" />
 
         <activity android:name=".ui.shop.OrderListActivity" />
+
+        <activity
+            android:name=".ui.shop.ShopLoginActivity"
+            android:label="商城登录"
+            android:theme="@style/Theme.WuyeApp"
+            android:exported="false" />
     </application>
 </manifest>

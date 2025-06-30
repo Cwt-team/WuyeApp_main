@@ -100,7 +100,7 @@ public class MaintenanceListActivity extends AppCompatActivity {
         String token = SessionManager.getInstance(this).getAuthToken();
         
         // 使用拦截器添加认证头
-        RetrofitClient.getInstance().addAuthHeader("Authorization", "Bearer " + token);
+        RetrofitClient.getInstance().setAuthToken(token);
         
         RetrofitClient.getInstance().getApiService()
             .getMaintenanceList(owner.getId(), currentPage, PAGE_SIZE, 

@@ -64,10 +64,19 @@ public class PersonalResidenceRepairActivity extends AppCompatActivity {
         }
 
         OwnerInfo owner = sessionManager.getOwnerInfo();
-        
-        // 添加社区ID检查
-        if (owner == null || owner.getCommunityId() <= 0) {
-            Toast.makeText(this, "无法获取社区信息，请联系管理员", Toast.LENGTH_SHORT).show();
+        if (owner == null || owner.getCommunityId() == null || owner.getCommunityId().isEmpty()) {
+            Toast.makeText(this, "请先选择小区", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        int communityId, houseId;
+        try {
+            communityId = Integer.parseInt(owner.getCommunityId());
+            houseId = Integer.parseInt(owner.getHouseId());
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "无效的社区或房屋ID", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "无效的ID格式: communityId=" + owner.getCommunityId() + ", houseId=" + owner.getHouseId());
             return;
         }
         
@@ -76,14 +85,14 @@ public class PersonalResidenceRepairActivity extends AppCompatActivity {
             description, 
             "personal_residence", 
             "normal",
-            owner.getCommunityId(), // 确保这里有效
-            owner.getHouseId(),
+            communityId,
+            houseId,
             contactName,
             contactPhone
         );
         
         // 添加日志以便调试
-        Log.d(TAG, "提交报修请求: communityId=" + owner.getCommunityId() + ", houseId=" + owner.getHouseId());
+        Log.d(TAG, "提交报修请求: communityId=" + communityId + ", houseId=" + houseId);
         
         RetrofitClient.getInstance().getApiService()
             .submitMaintenanceRequest(request)

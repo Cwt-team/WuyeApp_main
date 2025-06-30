@@ -1,3 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">WuyeApp</string>
+    <string name="app_name">物业APP</string>
+    <string name="nav_header_desc">导航抽屉头部图片</string>
+    
+    <!-- 导航菜单项 -->
+    <string name="menu_home">首页</string>
+    <string name="menu_profile">个人信息</string>
+    <string name="menu_shop">商城</string>
+    <string name="menu_maintenance">维修</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_logout">退出登录</string>
+    
+    <!-- 其他字符串 -->
+    <string name="login">登录</string>
+    <string name="register">注册</string>
+    <string name="username">用户名</string>
+    <string name="password">密码</string>
+    <string name="email">邮箱</string>
+    <string name="phone">手机号</string>
 </resources>

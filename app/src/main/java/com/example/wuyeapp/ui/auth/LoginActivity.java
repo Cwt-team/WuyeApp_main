@@ -12,7 +12,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.wuyeapp.databinding.ActivityLoginBinding;
-import com.example.wuyeapp.model.user.OwnerInfo;
+import com.example.wuyeapp.model.user.LoginRequest;
+import com.example.wuyeapp.model.user.LoginResponse;
 import com.example.wuyeapp.session.SessionManager;
 import com.example.wuyeapp.ui.home.MainActivity;
 import com.example.wuyeapp.utils.LogUtil;
@@ -32,7 +33,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-import com.example.wuyeapp.model.user.LoginResponse;
+import com.example.wuyeapp.model.user.OwnerInfo;
 import com.example.wuyeapp.network.client.RetrofitClient;
 
 public class LoginActivity extends AppCompatActivity {
@@ -55,75 +56,15 @@ public class LoginActivity extends AppCompatActivity {
         executorService = Executors.newSingleThreadExecutor();
         mainHandler = new Handler(Looper.getMainLooper());
 
+        // 如果已经登录，直接进入主页面
+        if (sessionManager.isLoggedIn()) {
+            startActivity(new Intent(LoginActivity.this, MainActivity.class));
+            finish();
+            return;
+        }
+
         // 设置登录按钮点击事件
-        binding.btnLogin.setOnClickListener(v -> {
-            String account = binding.etAccount.getText().toString().trim();
-            String password = binding.etPassword.getText().toString().trim();
-            LogUtil.d(TAG + " 尝试登录: " + account);
-
-            if (TextUtils.isEmpty(account)) {
-                binding.tilAccount.setError("请输入账号/手机号");
-                return;
-            } else {
-                binding.tilAccount.setError(null);
-            }
-
-            if (TextUtils.isEmpty(password)) {
-                binding.tilPassword.setError("请输入密码");
-                return;
-            } else {
-                binding.tilPassword.setError(null);
-            }
-
-            // 显示加载进度
-            binding.progressBar.setVisibility(View.VISIBLE);
-            binding.btnLogin.setEnabled(false);
-
-            // 使用Retrofit调用登录API
-            RetrofitClient.getInstance().getApiService()
-                    .login(account, password)
-                    .enqueue(new Callback<LoginResponse>() {
-                        @Override
-                        public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                            // 隐藏进度条
-                            binding.progressBar.setVisibility(View.GONE);
-                            binding.btnLogin.setEnabled(true);
-                            
-                            if (response.isSuccessful() && response.body() != null) {
-                                LoginResponse loginResponse = response.body();
-                                if (loginResponse.isSuccess()) {
-                                    LogUtil.i(TAG + " 登录成功: " + account);
-                                    // 登录成功，保存会话
-                                    OwnerInfo owner = loginResponse.getOwnerInfo();
-                                    sessionManager.createLoginSession(owner, "");
-                                    Toast.makeText(LoginActivity.this, "登录成功", Toast.LENGTH_SHORT).show();
-                                    
-                                    // 跳转到主页
-                                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                                    startActivity(intent);
-                                    finish();
-                                } else {
-                                    LogUtil.w(TAG + " 登录失败: " + loginResponse.getMessage());
-                                    // 登录失败
-                                    Toast.makeText(LoginActivity.this, loginResponse.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                            } else {
-                                LogUtil.w(TAG + " 登录失败: 服务器响应错误");
-                                Toast.makeText(LoginActivity.this, "服务器响应错误", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(Call<LoginResponse> call, Throwable t) {
-                            // 隐藏进度条
-                            binding.progressBar.setVisibility(View.GONE);
-                            binding.btnLogin.setEnabled(true);
-                            
-                            LogUtil.e(TAG + " 登录请求失败: " + t.getMessage());
-                            Toast.makeText(LoginActivity.this, "网络连接失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-        });
+        binding.btnLogin.setOnClickListener(v -> attemptLogin());
 
         // 设置注册按钮点击事件
         binding.tvRegister.setOnClickListener(v -> {
@@ -194,5 +135,64 @@ public class LoginActivity extends AppCompatActivity {
         super.onDestroy();
         LogUtil.i(TAG + " onDestroy");
         executorService.shutdown();
+    }
+
+    private void attemptLogin() {
+        String username = binding.etPhone.getText().toString().trim();  // 这里的输入框可以输入手机号或账号
+        String password = binding.etPassword.getText().toString().trim();
+
+        if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "请输入账号/手机号和密码", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        binding.progressBar.setVisibility(View.VISIBLE);
+        binding.btnLogin.setEnabled(false);
+
+        // 调用登录API
+        RetrofitClient.getApiService().login(username, password).enqueue(new Callback<LoginResponse>() {
+            @Override
+            public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                binding.progressBar.setVisibility(View.GONE);
+                binding.btnLogin.setEnabled(true);
+
+                if (response.isSuccessful() && response.body() != null) {
+                    LoginResponse loginResponse = response.body();
+                    if (loginResponse.isSuccess()) {
+                        // 保存用户信息和token
+                        sessionManager.createLoginSession(
+                            loginResponse.getOwnerInfo(), 
+                            loginResponse.getToken()
+                        );
+                        
+                        // 设置RetrofitClient的认证token
+                        RetrofitClient.getInstance().setAuthToken(loginResponse.getToken());
+                        
+                        // 跳转到主页面
+                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(LoginActivity.this, 
+                                     loginResponse.getMessage(), 
+                                     Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(LoginActivity.this, 
+                                 "登录失败，请稍后重试", 
+                                 Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<LoginResponse> call, Throwable t) {
+                binding.progressBar.setVisibility(View.GONE);
+                binding.btnLogin.setEnabled(true);
+                LogUtil.e(TAG, "Login failed", t);
+                Toast.makeText(LoginActivity.this, 
+                             "网络连接失败，请检查网络设置", 
+                             Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 } 

@@ -67,7 +67,7 @@ public class ProfileActivity extends AppCompatActivity {
         }
 
         // 显示基本用户信息（从Session中获取）
-        binding.phoneNumber.setText(currentOwner.getPhoneNumber());
+        binding.phoneNumber.setText(currentOwner.getPhone());
         
         // 从API获取详细信息
         fetchOwnerDetail(currentOwner.getId());

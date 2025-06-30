@@ -51,6 +51,7 @@ import androidx.core.app.ActivityCompat;
 import com.example.wuyeapp.model.user.OwnerInfo;
 import com.example.wuyeapp.ui.auth.LoginActivity;
 import com.example.wuyeapp.ui.shop.ShopActivity;
+import com.google.android.material.navigation.NavigationView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -61,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_MORE = 1001;
     private static final int PERMISSION_REQUEST_CODE = 1001;
     private static final int NOTIFICATION_PERMISSION_CODE = 123;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +70,24 @@ public class MainActivity extends AppCompatActivity {
         LogUtil.i(TAG + " onCreate");
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        sessionManager = SessionManager.getInstance(this);
+
+        // 检查用户是否已登录
+        if (!sessionManager.isLoggedIn()) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
+        // 设置工具栏
+        setSupportActionBar(binding.toolbar);
+
+        // 设置导航抽屉
+        setupNavigationDrawer();
+
+        // 更新用户信息显示
+        updateUserInfo();
 
         // 1. 设置头部信息
         binding.appName.setText("我是帅哥111"); // 替换为实际的应用名称
@@ -168,6 +188,54 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotificationPermission();
         }
+    }
+
+    private void setupNavigationDrawer() {
+        NavigationView navigationView = binding.navView;
+        navigationView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_home) {
+                // 已经在首页，不需要操作
+            } else if (id == R.id.nav_profile) {
+                startActivity(new Intent(this, ProfileActivity.class));
+            } else if (id == R.id.nav_shop) {
+                startActivity(new Intent(this, ShopActivity.class));
+            } else if (id == R.id.nav_logout) {
+                logout();
+            }
+            binding.drawerLayout.closeDrawers();
+            return true;
+        });
+
+        // 更新导航抽屉头部信息
+        View headerView = navigationView.getHeaderView(0);
+        if (headerView != null) {
+            TextView tvUsername = headerView.findViewById(R.id.tv_username);
+            TextView tvEmail = headerView.findViewById(R.id.tv_email);
+            
+            OwnerInfo owner = sessionManager.getOwnerInfo();
+            if (owner != null) {
+                tvUsername.setText(owner.getName());
+                tvEmail.setText(owner.getEmail());
+            }
+        }
+    }
+
+    private void updateUserInfo() {
+        OwnerInfo owner = sessionManager.getOwnerInfo();
+        if (owner != null) {
+            // 更新用户信息显示
+            String displayName = owner.getName() != null ? owner.getName() : owner.getAccount();
+            getSupportActionBar().setTitle(displayName);
+        }
+    }
+
+    private void logout() {
+        sessionManager.logout();
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void setupQuickActions() {
@@ -370,44 +438,6 @@ public class MainActivity extends AppCompatActivity {
                 return R.drawable.ic_quick_action_more;
         }
     }
-
-    // private void handleQuickActionClick(String functionName) {
-    //     LogUtil.i(TAG + " 点击功能: " + functionName);
-    //     Intent intent;
-    //     switch (functionName) {
-    //         case "户户通":
-    //             intent = new Intent(this, DialPadActivity.class);
-    //             startActivity(intent);
-    //             break;
-    //         case "监控":
-    //             navigateToSipSettings();
-    //             break;
-    //         case "邀请访客":
-    //             // intent = new Intent(this, InviteVisitorActivity.class);
-    //             // startActivity(intent);
-    //             break;
-    //         case "呼叫电梯":
-    //             // Toast.makeText(this, "启动呼叫电梯", Toast.LENGTH_SHORT).show();
-    //             break;
-    //         case "扫码开门":
-    //             // intent = new Intent(this, ScanQrActivity.class);
-    //             // startActivity(intent);
-    //             break;
-    //         case "社区通知":
-    //             // Toast.makeText(this, "启动社区通知", Toast.LENGTH_SHORT).show();
-    //             break;
-    //         case "报警记录":
-    //             // Toast.makeText(this, "启动报警记录", Toast.LENGTH_SHORT).show();
-    //             break;
-    //         case "报事报修":
-    //             intent = new Intent(this, MaintenanceActivity.class);
-    //             startActivity(intent);
-    //             break;
-    //         default:
-    //             Toast.makeText(this, "功能开发中...", Toast.LENGTH_SHORT).show();
-    //             break;
-    //     }
-    // }
 
     @Override
     protected void onResume() {

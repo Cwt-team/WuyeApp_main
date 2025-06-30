@@ -10,6 +10,7 @@ public class BaseResponse<T> {
     private boolean success;
     private String message;
     private T data;
+    private int code;
 
     // 用于接收后端返回的额外字段
     @SerializedName("houseExists")
@@ -69,5 +70,13 @@ public class BaseResponse<T> {
 
     public void setHouseId(Integer houseId) {
         this.houseId = houseId;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public void setCode(int code) {
+        this.code = code;
     }
 } 

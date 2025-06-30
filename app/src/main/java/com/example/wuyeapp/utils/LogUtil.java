@@ -37,6 +37,30 @@ public class LogUtil {
         }
     }
 
+    public static void i(String tag, String msg) {
+        if (isDebug) {
+            Log.i(tag, msg);
+        }
+    }
+
+    public static void w(String tag, String msg) {
+        if (isDebug) {
+            Log.w(tag, msg);
+        }
+    }
+
+    public static void e(String tag, String msg) {
+        if (isDebug) {
+            Log.e(tag, msg);
+        }
+    }
+
+    public static void e(String tag, String msg, Throwable tr) {
+        if (isDebug) {
+            Log.e(tag, msg, tr);
+        }
+    }
+
     public static void logToFile(String msg) {
         if (!isDebug) return;
         // 实现文件写入逻辑
