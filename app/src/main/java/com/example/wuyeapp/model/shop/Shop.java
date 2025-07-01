@@ -5,18 +5,25 @@ import com.google.gson.annotations.SerializedName;
 public class Shop {
     @SerializedName("id")
     private int id;
+
     @SerializedName("name")
     private String name;
-    @SerializedName("description")
-    private String description;
-    @SerializedName("imageUrl")
-    private String imageUrl; // 商铺图片URL
 
-    public Shop(int id, String name, String description, String imageUrl) {
+    @SerializedName("address")
+    private String address;
+
+    @SerializedName("phone")
+    private String phone;
+
+    @SerializedName("status")
+    private int status;
+
+    public Shop(int id, String name, String address, String phone, int status) {
         this.id = id;
         this.name = name;
-        this.description = description;
-        this.imageUrl = imageUrl;
+        this.address = address;
+        this.phone = phone;
+        this.status = status;
     }
 
     // Getters
@@ -28,12 +35,16 @@ public class Shop {
         return name;
     }
 
-    public String getDescription() {
-        return description;
+    public String getAddress() {
+        return address;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public String getPhone() {
+        return phone;
+    }
+
+    public int getStatus() {
+        return status;
     }
 
     // Setters (如果需要修改数据则添加，否则可省略)
@@ -45,11 +56,15 @@ public class Shop {
         this.name = name;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setAddress(String address) {
+        this.address = address;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
     }
 }

@@ -10,6 +10,13 @@ public class LoginResponse extends BaseResponse {
     @SerializedName("token")
     private String token;
     
+    @SerializedName("userId")
+    private long userId;
+    
+
+    
+
+    
     public OwnerInfo getOwnerInfo() {
         return ownerInfo;
     }
@@ -25,4 +32,16 @@ public class LoginResponse extends BaseResponse {
     public void setToken(String token) {
         this.token = token;
     }
+
+    public long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(long userId) {
+        this.userId = userId;
+    }
+
+
+
+
 }

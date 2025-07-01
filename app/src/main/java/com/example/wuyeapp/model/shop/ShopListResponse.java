@@ -5,19 +5,17 @@ import java.util.List;
 import com.google.gson.annotations.SerializedName; // 添加这个导入
 
 public class ShopListResponse {
-    @SerializedName("items") // 确保字段名与JSON键匹配
-    private List<Shop> items;
-
-    @SerializedName("total") // 确保字段名与JSON键匹配
+    @SerializedName("total")
     private int total;
 
-    public List<Shop> getItems() {
-        return items;
-    }
+    @SerializedName("current_page")
+    private int currentPage;
 
-    public void setItems(List<Shop> items) {
-        this.items = items;
-    }
+    @SerializedName("page_size")
+    private int pageSize;
+
+    @SerializedName("items")
+    private List<Shop> items;
 
     public int getTotal() {
         return total;
@@ -25,5 +23,29 @@ public class ShopListResponse {
 
     public void setTotal(int total) {
         this.total = total;
+    }
+
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public void setCurrentPage(int currentPage) {
+        this.currentPage = currentPage;
+    }
+
+    public int getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(int pageSize) {
+        this.pageSize = pageSize;
+    }
+
+    public List<Shop> getItems() {
+        return items;
+    }
+
+    public void setItems(List<Shop> items) {
+        this.items = items;
     }
 }

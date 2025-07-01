@@ -19,19 +19,17 @@ import java.util.List;
  */
 public class ProductListResponse {
 
-    @SerializedName("items")
-    private List<Product> items;
-
     @SerializedName("total")
     private int total;
 
-    public List<Product> getItems() {
-        return items;
-    }
+    @SerializedName("current_page")
+    private int currentPage;
 
-    public void setItems(List<Product> items) {
-        this.items = items;
-    }
+    @SerializedName("page_size")
+    private int pageSize;
+
+    @SerializedName("items")
+    private List<Product> items;
 
     public int getTotal() {
         return total;
@@ -41,11 +39,37 @@ public class ProductListResponse {
         this.total = total;
     }
 
+    public int getCurrentPage() {
+        return currentPage;
+    }
+
+    public void setCurrentPage(int currentPage) {
+        this.currentPage = currentPage;
+    }
+
+    public int getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(int pageSize) {
+        this.pageSize = pageSize;
+    }
+
+    public List<Product> getItems() {
+        return items;
+    }
+
+    public void setItems(List<Product> items) {
+        this.items = items;
+    }
+
     @Override
     public String toString() {
         return "ProductListResponse{" +
-               "items=" + (items != null ? items.size() : "null") + " items" +
-               ", total=" + total +
-               '}';
+                "total=" + total +
+                ", currentPage=" + currentPage +
+                ", pageSize=" + pageSize +
+                ", items=" + (items != null ? items.size() : "null") + " items" +
+                '}';
     }
 }

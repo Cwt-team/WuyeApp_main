@@ -34,12 +34,12 @@ public class RetrofitClient {
 
     static {
         if (isEmulator()) {
-            PROPERTY_MANAGEMENT_BASE_URL = "http://10.0.2.2:5000/"; // 修改为新的模拟器访问地址
-            MALL_MANAGEMENT_BASE_URL = "http://10.0.2.2:5100/";     // 修改为新的模拟器访问地址
+            PROPERTY_MANAGEMENT_BASE_URL = "http://10.0.2.2:5000/"; // 物业服务
+            MALL_MANAGEMENT_BASE_URL = "http://10.0.2.2:5100/api/mobile/"; // 商城服务，添加api/mobile前缀
             LogUtil.i(TAG + " 检测到模拟器，API地址: " + PROPERTY_MANAGEMENT_BASE_URL);
         } else {
-            PROPERTY_MANAGEMENT_BASE_URL = "http://10.0.2.2:5000/"; // 生产环境服务器
-            MALL_MANAGEMENT_BASE_URL = "http://10.0.2.2:5100/";     // 生产环境服务器
+            PROPERTY_MANAGEMENT_BASE_URL = "http://10.0.2.2:5000/"; // 生产环境物业服务
+            MALL_MANAGEMENT_BASE_URL = "http://10.0.2.2:5100/api/mobile/"; // 生产环境商城服务
             LogUtil.i(TAG + " 检测到物理设备，API地址: " + PROPERTY_MANAGEMENT_BASE_URL);
         }
     }

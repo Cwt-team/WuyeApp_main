@@ -6,6 +6,7 @@ import com.example.wuyeapp.model.user.OwnerInfo;
 import com.example.wuyeapp.model.user.OwnerDetailResponse;
 import com.example.wuyeapp.model.user.OwnerUpdateRequest;
 import com.example.wuyeapp.model.user.FaceUploadResponse;
+import com.example.wuyeapp.model.user.UserAuthMapping;
 import com.example.wuyeapp.model.base.BaseResponse;
 import com.example.wuyeapp.model.maintenance.MaintenanceRequest;
 import com.example.wuyeapp.model.maintenance.MaintenanceListResponse;
@@ -147,4 +148,23 @@ public interface ApiService {
 
     @POST("api/mobile/login")
     Call<LoginResponse> login(@Body LoginRequest loginRequest);
+
+    // 新增：获取用户认证映射
+    @GET("api/mobile/auth/mapping/{personalInfoId}")
+    Call<UserAuthMapping> getUserAuthMapping(@Path("personalInfoId") long personalInfoId);
+
+    // 新增：创建用户认证映射
+    @POST("api/mobile/auth/mapping")
+    Call<UserAuthMapping> createUserAuthMapping(@Body UserAuthMapping mapping);
+
+    // 新增：更新用户认证映射
+    @PUT("api/mobile/auth/mapping/{id}")
+    Call<UserAuthMapping> updateUserAuthMapping(
+        @Path("id") int id,
+        @Body UserAuthMapping mapping
+    );
+
+    // 新增：统一登录接口
+    @POST("api/mobile/auth/unified-login")
+    Call<LoginResponse> unifiedLogin(@Body LoginRequest loginRequest);
 }

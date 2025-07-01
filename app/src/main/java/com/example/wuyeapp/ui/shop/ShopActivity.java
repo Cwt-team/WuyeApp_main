@@ -35,6 +35,9 @@ import com.example.wuyeapp.model.shop.ProductListResponse;
 import java.io.IOException;
 import com.example.wuyeapp.session.SessionManager;
 import com.example.wuyeapp.ui.auth.LoginActivity;
+import com.example.wuyeapp.model.shop.Category;
+import com.example.wuyeapp.model.ApiResponse;
+import android.app.AlertDialog;
 
 public class ShopActivity extends AppCompatActivity {
     private static final String TAG = "ShopActivity";
@@ -292,27 +295,100 @@ public class ShopActivity extends AppCompatActivity {
     }
 
     private void showShopSwitchDialog() {
-        if (shops.isEmpty()) {
-            Toast.makeText(this, "商铺列表正在加载，请稍候。", Toast.LENGTH_SHORT).show();
+        if (shops == null || shops.isEmpty()) {
+            Toast.makeText(this, "暂无可用商铺", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("切换商铺");
         String[] shopNames = new String[shops.size()];
         for (int i = 0; i < shops.size(); i++) {
-            shopNames[i] = shops.get(i).getName();
+            Shop shop = shops.get(i);
+            shopNames[i] = shop.getName() + " (" + shop.getAddress() + ")";
         }
 
-        builder.setItems(shopNames, (dialog, which) -> {
-            currentShopName = shopNames[which];
-            currentShopId = shops.get(which).getId();
-            shopTitle.setText("当前商铺：" + currentShopName);
-            updateProductList();
-        });
-        builder.setNegativeButton("取消", null);
-        builder.show();
+        new AlertDialog.Builder(this)
+            .setTitle("选择商铺")
+            .setSingleChoiceItems(shopNames, getCurrentShopIndex(), (dialog, which) -> {
+                Shop selectedShop = shops.get(which);
+                currentShopId = selectedShop.getId();
+                currentShopName = selectedShop.getName();
+                shopTitle.setText("当前商铺：" + currentShopName);
+                
+                // 切换商铺后重新获取商品
+                fetchProducts();
+                dialog.dismiss();
+                
+                // 提示用户
+                Toast.makeText(this, "已切换到: " + currentShopName, Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
+
+    private int getCurrentShopIndex() {
+        for (int i = 0; i < shops.size(); i++) {
+            if (shops.get(i).getId() == currentShopId) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private void fetchShopsAndProducts() {
+        Toast.makeText(this, "正在加载商铺和商品信息...", Toast.LENGTH_SHORT).show();
+
+        // 获取商铺列表
+        shopApiService.getShops(1, 50, null).enqueue(new Callback<ApiResponse<ShopListResponse>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<ShopListResponse>> call, 
+                                 Response<ApiResponse<ShopListResponse>> response) {
+                if (!response.isSuccessful() || response.body() == null || !response.body().isSuccess()) {
+                    String errorMsg = "获取商铺列表失败";
+                    if (response.body() != null) {
+                        errorMsg = response.body().getMessage();
+                    }
+                    LogUtil.e(TAG, errorMsg);
+                    showError(errorMsg);
+                    return;
+                }
+
+                ShopListResponse shopListResponse = response.body().getData();
+                if (shopListResponse == null || shopListResponse.getItems() == null) {
+                    LogUtil.e(TAG, "商铺列表数据为空");
+                    showError("获取商铺列表失败: 数据为空");
+                    return;
+                }
+
+                shops = shopListResponse.getItems();
+                LogUtil.i(TAG, "成功获取到商铺列表，数量: " + shops.size());
+
+                if (!shops.isEmpty()) {
+                    // 默认选择第一个商铺
+                    currentShopId = shops.get(0).getId();
+                    currentShopName = shops.get(0).getName();
+                    shopTitle.setText("当前商铺：" + currentShopName);
+
+                    
+                    // 获取选中商铺的商品
+                    fetchProducts();
+                } else {
+                    LogUtil.w(TAG, "没有可用的商铺");
+                    Toast.makeText(ShopActivity.this, "暂无商铺信息", Toast.LENGTH_SHORT).show();
+                    showEmptyView();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<ShopListResponse>> call, Throwable t) {
+                String errorMsg = "网络连接失败，无法获取商铺列表: " + t.getMessage();
+                LogUtil.e(TAG, errorMsg, t);
+                showError(errorMsg);
+            }
+        });
+    }
+
+    // 设置商铺切换器
+
 
     private void showProductDetail(Product p) {
         Intent intent = new Intent(this, ProductDetailActivity.class);
@@ -326,153 +402,84 @@ public class ShopActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    private void fetchShopsAndProducts() {
-        Toast.makeText(this, "正在加载商铺和商品信息...", Toast.LENGTH_SHORT).show();
-
-        String authToken = sessionManager.getShopToken();
-        if (authToken.isEmpty()) {
-            LogUtil.e(TAG, "fetchShopsAndProducts: 认证令牌为空，无法获取商铺列表");
-            redirectToShopLogin();
-            return;
-        }
-
-        shopApiService.getAllShops("Bearer " + authToken).enqueue(new Callback<ShopListResponse>() {
-            @Override
-            public void onResponse(Call<ShopListResponse> call, Response<ShopListResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    ShopListResponse shopListResponse = response.body();
-                    LogUtil.d(TAG, "获取到商铺列表原始数据: " + shopListResponse.toString());
-                    shops = shopListResponse.getItems();
-
-                    if (!shops.isEmpty()) {
-                        currentShopId = shops.get(0).getId();
-                        currentShopName = shops.get(0).getName();
-                        shopTitle.setText("当前商铺：" + currentShopName);
-                        fetchProducts();
-                    } else {
-                        Toast.makeText(ShopActivity.this, "没有商铺信息。", Toast.LENGTH_SHORT).show();
-                        LogUtil.w(TAG, "获取到商铺列表但为空。");
-                        updateProductList();
-                    }
-                } else {
-                    String errorBody = "";
-                    try {
-                        if (response.errorBody() != null) {
-                            errorBody = response.errorBody().string();
-                        }
-                    } catch (IOException e) {
-                        LogUtil.e(TAG, "读取错误信息失败", e);
-                    }
-                    LogUtil.e(TAG, "获取商铺列表失败: " + response.code() + ", 错误信息: " + errorBody);
-
-                    if (response.code() == 422) {
-                        // Token 无效，需要重新登录
-                        Toast.makeText(ShopActivity.this, "登录已过期，请重新登录", Toast.LENGTH_SHORT).show();
-                        redirectToShopLogin();
-                    } else {
-                        Toast.makeText(ShopActivity.this, "获取商铺列表失败：" + response.code(), Toast.LENGTH_SHORT).show();
-                        allProducts.clear();
-                        updateProductList();
-                    }
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ShopListResponse> call, Throwable t) {
-                Toast.makeText(ShopActivity.this, "网络连接或服务器错误：商铺", Toast.LENGTH_SHORT).show();
-                LogUtil.e(TAG, "获取商铺列表请求失败：", t);
-                allProducts.clear();
-                updateProductList();
-            }
-        });
-    }
-
     private void fetchProducts() {
         if (currentShopId == -1) {
-            LogUtil.d(TAG, "fetchProducts: 未选择商铺ID，不获取商品信息。");
+            LogUtil.w(TAG, "没有选择商铺，无法获取商品列表");
             return;
         }
 
-        String authToken = sessionManager.getShopToken();
+        LogUtil.d(TAG, "正在获取商铺ID: " + currentShopId + " 的商品列表");
         
-        // 记录请求参数
-        LogUtil.d(TAG, "开始获取商品列表");
-        LogUtil.d(TAG, "请求参数 - shopId: " + currentShopId);
-        LogUtil.d(TAG, "请求参数 - token: " + (authToken.isEmpty() ? "空" : "Bearer " + authToken));
-
-        if (authToken.isEmpty()) {
-            LogUtil.e(TAG, "fetchProducts: 认证令牌为空，无法获取商品列表");
-            redirectToShopLogin();
-            return;
-        }
-
-        shopApiService.getProductsByShopIdWithQuery("Bearer " + authToken, currentShopId)
-            .enqueue(new Callback<ProductListResponse>() {
+        shopApiService.getProducts(1, 50, null, null, currentShopId)
+            .enqueue(new Callback<ApiResponse<ProductListResponse>>() {
                 @Override
-                public void onResponse(Call<ProductListResponse> call, Response<ProductListResponse> response) {
-                    // 记录响应结果
-                    LogUtil.d(TAG, "API响应码: " + response.code());
-                    LogUtil.d(TAG, "API响应头: " + response.headers());
-
-                    if (response.isSuccessful() && response.body() != null) {
-                        ProductListResponse data = response.body();
-                        LogUtil.d(TAG, "商品总数: " + data.getTotal());
-                        
-                        List<Product> products = data.getItems();
-                        if (products != null && !products.isEmpty()) {
-                            LogUtil.d(TAG, "成功获取到 " + products.size() + " 个商品");
-                            LogUtil.d(TAG, "商品列表: " + products);
-                            
-                            allProducts = products;
-                            extractCategoriesFromProducts(allProducts);
-                            updateCategoryList();
-                            updateProductList();
-                        } else {
-                            LogUtil.d(TAG, "商品列表为空");
-                            allProducts.clear();
-                            updateProductList();
+                public void onResponse(Call<ApiResponse<ProductListResponse>> call, 
+                                    Response<ApiResponse<ProductListResponse>> response) {
+                    if (!response.isSuccessful() || response.body() == null || !response.body().isSuccess()) {
+                        String errorMsg = "获取商品列表失败";
+                        if (response.body() != null) {
+                            errorMsg = response.body().getMessage();
                         }
+                        LogUtil.e(TAG, errorMsg);
+                        showError(errorMsg);
+                        return;
+                    }
+
+                    ProductListResponse productResponse = response.body().getData();
+                    if (productResponse == null || productResponse.getItems() == null) {
+                        LogUtil.w(TAG, "商铺 " + currentShopId + " 暂无商品");
+                        allProducts.clear();
+                        showEmptyView();
+                        return;
+                    }
+
+                    allProducts = productResponse.getItems();
+                    LogUtil.i(TAG, "成功获取到商品列表，数量: " + allProducts.size());
+
+                    if (!allProducts.isEmpty()) {
+                        hideEmptyView();
+                        updateProductList();
+                        // 获取分类信息
+                        fetchCategories();
                     } else {
-                        String errorBody = "";
-                        try {
-                            if (response.errorBody() != null) {
-                                errorBody = response.errorBody().string();
-                            }
-                        } catch (IOException e) {
-                            LogUtil.e(TAG, "读取错误信息失败", e);
-                        }
-                        LogUtil.e(TAG, "API错误响应: " + errorBody);
-                        LogUtil.e(TAG, "fetchProducts: 获取商品列表失败: " + response.code() + ", 错误信息: " + errorBody);
-
-                        if (response.code() == 422) {
-                            // Token 无效，需要重新登录
-                            Toast.makeText(ShopActivity.this, "登录已过期，请重新登录", Toast.LENGTH_SHORT).show();
-                            redirectToShopLogin();
-                        } else {
-                            Toast.makeText(ShopActivity.this, "获取商品列表失败: " + response.code(), Toast.LENGTH_SHORT).show();
-                        }
+                        showEmptyView();
                     }
                 }
 
                 @Override
-                public void onFailure(Call<ProductListResponse> call, Throwable t) {
-                    LogUtil.e(TAG, "API请求失败", t);
-                    Toast.makeText(ShopActivity.this, "获取商品列表请求失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                public void onFailure(Call<ApiResponse<ProductListResponse>> call, Throwable t) {
+                    String errorMsg = "网络连接失败，无法获取商品列表: " + t.getMessage();
+                    LogUtil.e(TAG, errorMsg, t);
+                    showError(errorMsg);
                 }
             });
     }
 
-    private void extractCategoriesFromProducts(List<Product> products) {
-        categories.clear();
-        categories.add("全部");
-        for (Product product : products) {
-            String categoryIdString = String.valueOf(product.getCategoryId());
-            if (categoryIdString != null && !categoryIdString.trim().isEmpty()) {
-                if (!categories.contains(categoryIdString)) {
-                    categories.add(categoryIdString);
+    private void fetchCategories() {
+        shopApiService.getCategories(currentShopId)
+            .enqueue(new Callback<ApiResponse<List<Category>>>() {
+                @Override
+                public void onResponse(Call<ApiResponse<List<Category>>> call,
+                                    Response<ApiResponse<List<Category>>> response) {
+                    if (response.isSuccessful() && response.body() != null && 
+                        response.body().isSuccess()) {
+                        List<Category> categoryList = response.body().getData();
+                        categories.clear();
+                        categories.add("全部");
+                        for (Category category : categoryList) {
+                            categories.add(category.getName());
+                        }
+                        updateCategoryList();
+                    } else {
+                        LogUtil.e(TAG, "获取分类列表失败: " + response.code());
+                    }
                 }
-            }
-        }
+
+                @Override
+                public void onFailure(Call<ApiResponse<List<Category>>> call, Throwable t) {
+                    LogUtil.e(TAG, "获取分类列表失败", t);
+                }
+            });
     }
 
     @Override
@@ -564,5 +571,12 @@ public class ShopActivity extends AppCompatActivity {
                 .setDuration(300)
                 .setInterpolator(new AccelerateDecelerateInterpolator())
                 .start();
+    }
+
+    private void showError(String message) {
+        runOnUiThread(() -> {
+            Toast.makeText(ShopActivity.this, message, Toast.LENGTH_SHORT).show();
+            // 可以在这里添加错误UI显示
+        });
     }
 } 

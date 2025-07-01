@@ -45,6 +45,12 @@ import android.app.AlertDialog;
 import android.provider.Settings;
 import android.content.SharedPreferences;
 
+import com.example.wuyeapp.network.api.ApiService;
+import com.example.wuyeapp.network.api.ShopApiService;
+import com.example.wuyeapp.network.api.ShopAuthApiService;
+import com.example.wuyeapp.network.client.ApiClientFactory;
+import com.example.wuyeapp.session.UnifiedAuthManager;
+
 public class WuyeApplication extends Application {
     private static Context context;
     private static final String TAG = "WuyeApplication";
@@ -60,6 +66,12 @@ public class WuyeApplication extends Application {
     // 电源锁，用于唤醒屏幕
     // private PowerManager.WakeLock screenWakeLock;
     
+    private UnifiedAuthManager authManager;
+    private ApiClientFactory apiClientFactory;
+    private ApiService apiService;
+    private ShopApiService shopApiService;
+    private ShopAuthApiService shopAuthService;
+    
     @Override
     public void onCreate() {
         super.onCreate();
@@ -70,6 +82,23 @@ public class WuyeApplication extends Application {
         
         // 初始化Linphone Factory
         Factory.instance();
+        
+        // 首先创建API客户端工厂（不带认证管理器）
+        apiClientFactory = new ApiClientFactory(null);
+        
+        // 创建API服务实例
+        apiService = apiClientFactory.createMainApiService();
+        shopApiService = apiClientFactory.createShopApiService();
+        shopAuthService = apiClientFactory.createShopAuthApiService();
+        
+        // 初始化认证管理器
+        authManager = UnifiedAuthManager.getInstance(this, apiService, shopAuthService);
+        
+        // 更新ApiClientFactory中的认证管理器
+        apiClientFactory.setAuthManager(authManager);
+        
+        // 其他初始化...
+        checkAndRequestNotificationPermissions();
         
         // 检查并申请通知权限、锁屏权限、后台弹窗权限
         checkAndRequestNotificationPermissions();
@@ -163,6 +192,11 @@ public class WuyeApplication extends Application {
         
         // 旧SipManager已不再需要，但为了平滑过渡可以保留
         // SipManager.getInstance().init(this);
+        
+        // 如果是小米设备，提示用户设置权限
+        if (isMiuiDevice()) {
+            Log.i(TAG, "检测到小米设备，建议设置通知和自启动权限");
+        }
     }
     
     // 创建来电通知渠道
@@ -729,5 +763,52 @@ public class WuyeApplication extends Application {
             })
             .setCancelable(true)
             .show();
+    }
+
+    public UnifiedAuthManager getAuthManager() {
+        if (authManager == null) {
+            if (apiClientFactory == null) {
+                apiClientFactory = new ApiClientFactory(null);
+            }
+            if (apiService == null) {
+                apiService = apiClientFactory.createMainApiService();
+            }
+            if (shopAuthService == null) {
+                shopAuthService = apiClientFactory.createShopAuthApiService();
+            }
+            authManager = UnifiedAuthManager.getInstance(this, apiService, shopAuthService);
+            apiClientFactory.setAuthManager(authManager);
+        }
+        return authManager;
+    }
+
+    public ApiService getApiService() {
+        if (apiService == null) {
+            if (apiClientFactory == null) {
+                apiClientFactory = new ApiClientFactory(null);
+            }
+            apiService = apiClientFactory.createMainApiService();
+        }
+        return apiService;
+    }
+
+    public ShopApiService getShopApiService() {
+        if (shopApiService == null) {
+            if (apiClientFactory == null) {
+                apiClientFactory = new ApiClientFactory(null);
+            }
+            shopApiService = apiClientFactory.createShopApiService();
+        }
+        return shopApiService;
+    }
+
+    public ShopAuthApiService getShopAuthService() {
+        if (shopAuthService == null) {
+            if (apiClientFactory == null) {
+                apiClientFactory = new ApiClientFactory(null);
+            }
+            shopAuthService = apiClientFactory.createShopAuthApiService();
+        }
+        return shopAuthService;
     }
 } 
