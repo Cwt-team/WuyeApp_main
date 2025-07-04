@@ -13,8 +13,6 @@ public class SessionManager {
     private static final String PREF_NAME = "WuyeAppPref";
     private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
     private static final String KEY_AUTH_TOKEN = "authToken";
-    private static final String KEY_SHOP_TOKEN = "shopToken";
-    private static final String KEY_SHOP_TOKEN_EXPIRY = "shopTokenExpiry";
     private static final String KEY_SHOP_USER_ROLE = "shopUserRole";
     private static final String KEY_SHOP_ID = "shopId";
     private static final String KEY_OWNER_ID = "ownerId";
@@ -55,28 +53,6 @@ public class SessionManager {
         editor.apply();
     }
 
-    public void createShopLoginSession(ShopAuthResponse response) {
-        if (response == null || response.getToken() == null || response.getToken().isEmpty()) {
-            LogUtil.e(TAG, "创建商城会话失败：无效的认证响应");
-            return;
-        }
-
-        Editor editor = prefs.edit();
-        editor.putString(KEY_SHOP_TOKEN, response.getToken());
-        
-        // 设置过期时间为23.5小时后（比24小时少30分钟，留出刷新时间）
-        long expiryTime = System.currentTimeMillis() + (23 * 60 + 30) * 60 * 1000;
-        editor.putLong(KEY_SHOP_TOKEN_EXPIRY, expiryTime);
-        
-        editor.putString(KEY_SHOP_USER_ROLE, response.getUserRole());
-        if (response.getShopId() != null) {
-            editor.putInt(KEY_SHOP_ID, response.getShopId());
-        }
-        editor.apply();
-        
-        LogUtil.i(TAG, "商城登录会话已创建，token将在23.5小时后过期");
-    }
-
     public OwnerInfo getOwnerInfo() {
         if (!isLoggedIn()) {
             return null;
@@ -98,15 +74,6 @@ public class SessionManager {
         return prefs.getString(KEY_AUTH_TOKEN, "");
     }
 
-    public String getShopToken() {
-        String token = prefs.getString(KEY_SHOP_TOKEN, "");
-        if (token.isEmpty() || isShopTokenExpired()) {
-            LogUtil.w(TAG, "商城token为空或已过期");
-            return "";
-        }
-        return token;
-    }
-
     public int getShopId() {
         return prefs.getInt(KEY_SHOP_ID, -1);
     }
@@ -115,52 +82,8 @@ public class SessionManager {
         return prefs.getString(KEY_SHOP_USER_ROLE, "");
     }
 
-    public boolean isShopTokenNearExpiry() {
-        if (isShopTokenExpired()) {
-            return true;
-        }
-        
-        long expiryTime = prefs.getLong(KEY_SHOP_TOKEN_EXPIRY, 0);
-        long currentTime = System.currentTimeMillis();
-        // 设置为30分钟提前刷新
-        long thirtyMinutes = 30 * 60 * 1000;
-        boolean isNearExpiry = (expiryTime - currentTime) <= thirtyMinutes;
-        
-        if (isNearExpiry) {
-            LogUtil.i(TAG, "商城token即将在30分钟内过期");
-        }
-        
-        return isNearExpiry;
-    }
-
-    public boolean isShopTokenExpired() {
-        long expiryTime = prefs.getLong(KEY_SHOP_TOKEN_EXPIRY, 0);
-        boolean isExpired = System.currentTimeMillis() >= expiryTime;
-        if (isExpired) {
-            LogUtil.w(TAG, "商城token已过期");
-            // 清除过期的token
-            logoutShop();
-        }
-        return isExpired;
-    }
-
     public boolean isLoggedIn() {
         return prefs.getBoolean(KEY_IS_LOGGED_IN, false);
-    }
-
-    public boolean isShopLoggedIn() {
-        String token = getShopToken();
-        if (token.isEmpty()) {
-            LogUtil.d(TAG, "商城未登录：token为空");
-            return false;
-        }
-        
-        if (isShopTokenExpired()) {
-            LogUtil.d(TAG, "商城未登录：token已过期");
-            return false;
-        }
-        
-        return true;
     }
 
     public void logout() {
@@ -168,15 +91,5 @@ public class SessionManager {
         editor.clear();
         editor.apply();
         LogUtil.i(TAG, "用户已登出，所有会话数据已清除");
-    }
-
-    public void logoutShop() {
-        Editor editor = prefs.edit();
-        editor.remove(KEY_SHOP_TOKEN);
-        editor.remove(KEY_SHOP_TOKEN_EXPIRY);
-        editor.remove(KEY_SHOP_USER_ROLE);
-        editor.remove(KEY_SHOP_ID);
-        editor.apply();
-        LogUtil.i(TAG, "商城用户已登出，商城会话数据已清除");
     }
 } 

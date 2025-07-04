@@ -184,11 +184,5 @@
         <activity android:name=".ui.shop.ProductDetailActivity" />
 
         <activity android:name=".ui.shop.OrderListActivity" />
-
-        <activity
-            android:name=".ui.shop.ShopLoginActivity"
-            android:label="商城登录"
-            android:theme="@style/Theme.WuyeApp"
-            android:exported="false" />
     </application>
 </manifest>

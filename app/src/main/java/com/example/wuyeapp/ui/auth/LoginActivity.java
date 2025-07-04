@@ -153,6 +153,12 @@ public class LoginActivity extends AppCompatActivity {
         RetrofitClient.getApiService().login(username, password).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                Log.i(TAG, "登录接口响应: " + response.toString());
+                if (response.body() != null) {
+                    Log.i(TAG, "登录接口响应body: " + response.body().toString());
+                } else {
+                    Log.w(TAG, "登录接口响应body为null");
+                }
                 binding.progressBar.setVisibility(View.GONE);
                 binding.btnLogin.setEnabled(true);
 
@@ -165,6 +171,11 @@ public class LoginActivity extends AppCompatActivity {
                             loginResponse.getToken()
                         );
                         
+                        // 修复：token判空，避免NullPointerException
+                        if (loginResponse.getToken() == null || loginResponse.getToken().isEmpty()) {
+                            Toast.makeText(LoginActivity.this, "登录异常，请重试", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                         // 设置RetrofitClient的认证token
                         RetrofitClient.getInstance().setAuthToken(loginResponse.getToken());
                         
@@ -186,6 +197,7 @@ public class LoginActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
+                Log.e(TAG, "登录接口请求失败", t);
                 binding.progressBar.setVisibility(View.GONE);
                 binding.btnLogin.setEnabled(true);
                 LogUtil.e(TAG, "Login failed", t);

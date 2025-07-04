@@ -60,59 +60,16 @@ public class ShopActivity extends AppCompatActivity {
         sessionManager = SessionManager.getInstance(this);
         shopApiService = RetrofitClient.getInstance().getShopApiService();
 
-        // 检查商城登录状态
-        if (!checkShopAuthentication()) {
+        // 只检查主token是否登录
+        if (!sessionManager.isLoggedIn()) {
+            LogUtil.i(TAG, "用户未登录物业系统，跳转到登录界面");
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
             return;
         }
 
         setupUI();
         fetchShopsAndProducts();
-    }
-
-    private boolean checkShopAuthentication() {
-        if (!sessionManager.isShopLoggedIn()) {
-            LogUtil.i(TAG, "用户未登录商城系统或登录已过期，跳转到登录界面");
-            redirectToShopLogin();
-            return false;
-        }
-
-        if (sessionManager.isShopTokenNearExpiry()) {
-            LogUtil.i(TAG, "商城token即将过期，尝试刷新");
-            refreshShopToken();
-        }
-
-        return true;
-    }
-
-    private void redirectToShopLogin() {
-        Intent intent = new Intent(this, ShopLoginActivity.class);
-        startActivity(intent);
-        finish();
-    }
-
-    private void refreshShopToken() {
-        String currentToken = sessionManager.getShopToken();
-        RetrofitClient.getInstance().getShopAuthApiService()
-            .refreshToken("Bearer " + currentToken)
-            .enqueue(new Callback<ShopAuthResponse>() {
-                @Override
-                public void onResponse(Call<ShopAuthResponse> call, Response<ShopAuthResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        sessionManager.createShopLoginSession(response.body());
-                        RetrofitClient.getInstance().setAuthToken(response.body().getToken());
-                        LogUtil.i(TAG, "商城token刷新成功");
-                    } else {
-                        LogUtil.e(TAG, "商城token刷新失败，需要重新登录");
-                        redirectToShopLogin();
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<ShopAuthResponse> call, Throwable t) {
-                    LogUtil.e(TAG, "商城token刷新请求失败", t);
-                    redirectToShopLogin();
-                }
-            });
     }
 
     private void setupUI() {
@@ -485,7 +442,11 @@ public class ShopActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!checkShopAuthentication()) {
+        // 只检查主token是否登录
+        if (!sessionManager.isLoggedIn()) {
+            LogUtil.i(TAG, "用户未登录物业系统，跳转到登录界面");
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
             return;
         }
     }
