@@ -33,7 +33,7 @@ public class BaseResponse<T> {
     }
 
     public boolean isSuccess() {
-        return success;
+        return code == 0;
     }
 
     public void setSuccess(boolean success) {

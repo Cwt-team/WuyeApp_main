@@ -127,9 +127,17 @@ public class ShopActivity extends AppCompatActivity {
         orderBtn.setPadding(32,8,32,8);
         orderBtn.setOnClickListener(v -> startActivity(new Intent(this, OrderListActivity.class)));
 
+        Button addressBtn = new Button(this);
+        addressBtn.setText("地址管理");
+        addressBtn.setTextColor(0xFFFFFFFF);
+        addressBtn.setBackground(btnBg.getConstantState().newDrawable());
+        addressBtn.setPadding(32,8,32,8);
+        addressBtn.setOnClickListener(v -> startActivity(new Intent(this, AddressListActivity.class)));
+
         topBar.addView(shopTitle);
         topBar.addView(switchShopBtn);
         topBar.addView(orderBtn);
+        topBar.addView(addressBtn);
         root.addView(topBar);
 
         // 主体区域

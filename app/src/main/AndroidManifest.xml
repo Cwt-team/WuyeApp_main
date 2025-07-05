@@ -175,8 +175,6 @@
 
         <activity android:name=".ui.profile.ApplicationListActivity" />
 
-
-
         <activity android:name=".ui.shop.ShopActivity" />
 
         <activity android:name=".ui.shop.ShopManagerActivity" />
@@ -184,5 +182,8 @@
         <activity android:name=".ui.shop.ProductDetailActivity" />
 
         <activity android:name=".ui.shop.OrderListActivity" />
+
+        <activity android:name=".ui.shop.AddressListActivity" />
+        <activity android:name=".ui.shop.EditAddressActivity" />
     </application>
 </manifest>

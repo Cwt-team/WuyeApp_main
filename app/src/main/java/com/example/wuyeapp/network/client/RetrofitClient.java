@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import com.example.wuyeapp.network.api.ApiService;
 import com.example.wuyeapp.network.api.ShopApiService;
 import com.example.wuyeapp.network.api.ShopAuthApiService;
+import com.example.wuyeapp.network.api.AddressApiService;
 import com.example.wuyeapp.utils.LogUtil;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -117,6 +118,15 @@ public class RetrofitClient {
     // Get Shop Auth API Service for Mall Management Backend
     public ShopAuthApiService getShopAuthApiService() {
         return mallManagementAuthApiService;
+    }
+
+    public AddressApiService getAddressApiService() {
+        return new Retrofit.Builder()
+                .baseUrl(MALL_MANAGEMENT_BASE_URL) // Assuming SHOP_BASE_URL is defined elsewhere or needs to be added
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(mallHttpClientBuilder.build()) // Assuming getHttpClient() is defined elsewhere or needs to be added
+                .build()
+                .create(AddressApiService.class);
     }
 
     // Rebuild Retrofit instance for Property Management Backend
